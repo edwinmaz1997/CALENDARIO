@@ -188,9 +188,9 @@ $activo = 'cotizaciones';
 $accionesHeader = '<a href="cotizaciones.php" class="btn btn-claro btn-sm"><i data-lucide="arrow-left"></i><span class="hidden sm:inline">Volver</span></a>';
 require __DIR__ . '/includes/header.php';
 ?>
-<div class="grid gap-5 lg:grid-cols-3">
+<div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
   <!-- Documento -->
-  <div class="lg:col-span-2">
+  <div class="min-w-0 lg:col-span-2">
     <article class="card overflow-hidden">
       <div class="h-2" style="background: linear-gradient(90deg, var(--c1), var(--c2))"></div>
       <div class="flex flex-col gap-5 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-7">
@@ -252,8 +252,8 @@ require __DIR__ . '/includes/header.php';
 
         <div class="mt-6">
           <?php if (!empty($cot['imagen'])): ?>
-            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" data-visor="imagen" data-titulo="Imagen de <?= e($numero) ?>" class="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              <img src="cotizacion_imagen.php?id=<?= (int)$id ?>&v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de la cotizacion" class="mx-auto max-h-96 w-auto object-contain">
+            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" data-visor="imagen" data-titulo="Imagen de <?= e($numero) ?>" class="flex h-56 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 sm:h-72">
+              <img src="cotizacion_imagen.php?id=<?= (int)$id ?>&v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de la cotizacion" class="block h-full w-full object-contain">
             </a>
           <?php endif; ?>
           <details class="desplegable mt-2">
@@ -426,7 +426,7 @@ require __DIR__ . '/includes/header.php';
   </div>
 
   <!-- Acciones -->
-  <aside class="space-y-4">
+  <aside class="min-w-0 space-y-4">
     <div class="card space-y-2 p-5">
       <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-primario w-full"><i data-lucide="file-text"></i>Ver PDF</a>
       <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&descargar=1" class="btn btn-claro w-full"><i data-lucide="download"></i>Descargar PDF</a>

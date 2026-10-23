@@ -203,12 +203,12 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
   </div>
 <?php endif; ?>
 
-<form method="post" id="form-cot" enctype="multipart/form-data" class="grid gap-5 pb-24 lg:grid-cols-3 lg:pb-0" data-sin-bloqueo>
+<form method="post" id="form-cot" enctype="multipart/form-data" class="grid grid-cols-1 gap-5 pb-24 lg:grid-cols-3 lg:pb-0" data-sin-bloqueo>
   <?= csrf_field() ?>
   <?php if ($cot['id']): ?><input type="hidden" name="id" value="<?= (int)$cot['id'] ?>"><?php endif; ?>
 
   <!-- Columna principal -->
-  <div class="space-y-5 lg:col-span-2">
+  <div class="min-w-0 space-y-5 lg:col-span-2">
     <section class="card p-5 sm:p-6">
       <div class="mb-4 flex items-center justify-between gap-3">
         <h2 class="text-base font-bold text-slate-900">Cliente</h2>
@@ -293,7 +293,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
   </div>
 
   <!-- Columna lateral -->
-  <div class="space-y-5">
+  <div class="min-w-0 space-y-5">
     <section class="card p-5 sm:p-6">
       <h2 class="mb-4 text-base font-bold text-slate-900">Evento</h2>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -317,8 +317,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="image" class="h-5 w-5 texto-marca"></i>Imagen <span class="text-xs font-normal text-slate-400">(opcional)</span></h2>
       <p class="ayuda mb-3">Se muestra en la cotizacion y en el PDF. Ej: referencia del montaje o la decoracion.</p>
       <?php $tieneImg = !empty($cot['imagen']) && $cot['id']; ?>
-      <div id="img-caja" class="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 <?= $tieneImg ? '' : 'hidden' ?>">
-        <img id="img-prev" src="<?= $tieneImg ? 'cotizacion_imagen.php?id=' . (int)$cot['id'] . '&v=' . e(substr(md5($cot['imagen']), 0, 6)) : '' ?>" alt="" class="max-h-full max-w-full object-contain">
+      <div id="img-caja" class="mb-3 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 <?= $tieneImg ? '' : 'hidden' ?>">
+        <img id="img-prev" src="<?= $tieneImg ? 'cotizacion_imagen.php?id=' . (int)$cot['id'] . '&v=' . e(substr(md5($cot['imagen']), 0, 6)) : '' ?>" alt="" class="block h-full w-full object-contain p-1">
       </div>
       <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagen" id="img-input" accept="image/jpeg,image/png">
       <p class="ayuda">JPG o PNG.</p>
