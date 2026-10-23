@@ -3,7 +3,7 @@
  * Punto de arranque comun: configuracion, sesion, conexion y utilidades.
  */
 define('APP_ROOT', dirname(__DIR__));
-define('ASSET_V', '1.4.0');
+define('ASSET_V', '1.4.1');
 
 $configFile = APP_ROOT . '/config/config.php';
 if (!is_file($configFile)) {

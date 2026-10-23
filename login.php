@@ -35,16 +35,24 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ingresar · <?= e($appNombre) ?></title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/app.css?v=<?= ASSET_V ?>">
 <link rel="stylesheet" href="assets/css/tailwind.css?v=<?= ASSET_V ?>">
 <script src="assets/vendor/lucide.min.js"></script>
-<style>:root { --c1: #1E40AF; --c2: #F59E0B; --c1-txt: #fff; --c2-txt: #111827; }</style>
+<style>
+  :root { --c1: #1E40AF; --c2: #F59E0B; --c1-txt: #fff; --c2-txt: #111827; }
+  /* Login fijo: sin scroll ni zoom en movil */
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+  .login-alto { height: 100vh; height: 100dvh; }
+  /* 16px evita el zoom automatico de iOS al enfocar un campo */
+  .input { font-size: 16px !important; }
+</style>
 </head>
-<body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
-<div class="flex min-h-screen">
+<body class="bg-slate-100 font-sans text-slate-800 antialiased">
+<div class="login-alto flex overflow-hidden">
   <div class="relative hidden flex-1 overflow-hidden bg-[#1E40AF] lg:block">
     <div class="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/10"></div>
     <div class="absolute -bottom-32 right-0 h-[28rem] w-[28rem] rounded-full bg-amber-400/20"></div>
@@ -55,7 +63,7 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
     </div>
   </div>
 
-  <div class="flex w-full items-center justify-center px-5 py-10 lg:w-[480px] lg:bg-white">
+  <div class="relative flex w-full items-center justify-center px-5 lg:w-[480px] lg:bg-white" style="padding-bottom: env(safe-area-inset-bottom)">
     <div class="w-full max-w-sm">
       <div class="mb-8 flex items-center gap-3">
         <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1E40AF] text-white"><i data-lucide="file-text" class="h-6 w-6"></i></div>
@@ -87,8 +95,20 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
         <button type="submit" class="btn btn-primario w-full py-3 text-base">Ingresar <i data-lucide="arrow-right"></i></button>
       </form>
     </div>
+    <p class="absolute inset-x-0 bottom-0 px-4 pb-4 text-center text-xs text-slate-400" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">Diseñado por Edwin Mazariegos - 31586340</p>
   </div>
 </div>
-<script>lucide.createIcons();</script>
+<script>
+lucide.createIcons();
+// iOS ignora user-scalable=no: bloquear pellizco y doble toque
+document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+var ultimoToque = 0;
+document.addEventListener('touchend', function (e) {
+  var ahora = Date.now();
+  if (ahora - ultimoToque < 300 && !e.target.closest('input, button, a')) e.preventDefault();
+  ultimoToque = ahora;
+}, { passive: false });
+</script>
 </body>
 </html>
