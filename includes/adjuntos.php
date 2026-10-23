@@ -86,6 +86,11 @@ function subir_adjuntos($campo, $cotizacionId, $empresaId, $titulo, $usuarioId)
             continue;
         }
         $nombre = basename((string)$f['name'][$i]);
+        // $titulo puede ser un texto para todos o un arreglo con un titulo por archivo
+        $tituloLinea = is_array($titulo) ? trim((string)($titulo[$i] ?? '')) : (string)$titulo;
+        if ($tituloLinea === '') {
+            $tituloLinea = 'Adjunto';
+        }
         if ($f['error'][$i] === UPLOAD_ERR_INI_SIZE || $f['error'][$i] === UPLOAD_ERR_FORM_SIZE) {
             $errores[] = $nombre . ': supera el tamano permitido por el servidor.';
             continue;
@@ -119,7 +124,7 @@ function subir_adjuntos($campo, $cotizacionId, $empresaId, $titulo, $usuarioId)
         }
         $mimeGuardado = $mime === 'application/octet-stream' || $mime === 'application/zip' ? $tipos[$ext][0] : $mime;
         db_exec('INSERT INTO cotizacion_adjuntos (cotizacion_id, titulo, archivo, nombre_original, mime, tamano, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)', [
-            $cotizacionId, mb_substr($titulo, 0, 150), $archivo, mb_substr($nombre, 0, 255), $mimeGuardado, (int)$f['size'][$i], $usuarioId,
+            $cotizacionId, mb_substr($tituloLinea, 0, 150), $archivo, mb_substr($nombre, 0, 255), $mimeGuardado, (int)$f['size'][$i], $usuarioId,
         ]);
         $guardados++;
     }

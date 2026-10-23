@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+require __DIR__ . '/includes/adjuntos.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -30,6 +31,10 @@ if ($id) {
 
 /* ---------- Guardar ---------- */
 if (is_post()) {
+    if (empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        flash('error', 'Los archivos superan el limite de subida del servidor (' . ini_get('post_max_size') . '). Intenta con archivos mas livianos.');
+        redirect('cotizacion_form.php' . ($id ? '?id=' . $id : ''));
+    }
     csrf_check();
     $cot['cliente_id']   = input_int('cliente_id') ?: null;
     $cot['fecha']        = input('fecha');
@@ -128,6 +133,16 @@ if (is_post()) {
             }
             $pdo->commit();
             flash('ok', $cot['id'] ? 'Cotizacion actualizada.' : 'Cotizacion creada como pendiente.');
+            // Adjuntos agregados en el formulario
+            if (!empty($_FILES['adj_archivo']['name']) && array_filter((array)$_FILES['adj_archivo']['name'])) {
+                list($nAdj, $errAdj) = subir_adjuntos('adj_archivo', $id, $eid, $_POST['adj_titulo'] ?? [], $u['id']);
+                if ($nAdj) {
+                    flash('ok', $nAdj === 1 ? 'Se adjunto 1 archivo.' : 'Se adjuntaron ' . $nAdj . ' archivos.');
+                }
+                foreach ($errAdj as $er) {
+                    flash('error', $er);
+                }
+            }
             redirect('cotizacion_ver.php?id=' . $id);
         } catch (Exception $ex) {
             if ($pdo->inTransaction()) {
@@ -142,6 +157,7 @@ if (is_post()) {
 }
 
 /* ---------- Datos para el formulario ---------- */
+$adjuntosExistentes = $cot['id'] ? db_all('SELECT id, titulo, nombre_original, mime FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY id', [$cot['id']]) : [];
 $clientes = db_all('SELECT id, nombre, nit, telefono FROM clientes WHERE empresa_id = ? AND (activo = 1 OR id = ?) ORDER BY nombre', [$eid, (int)$cot['cliente_id']]);
 $productos = db_all('SELECT id, codigo, nombre, descripcion, unidad, precio FROM productos WHERE empresa_id = ? AND activo = 1 ORDER BY nombre', [$eid]);
 foreach ($productos as &$p) {
@@ -170,7 +186,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
   </div>
 <?php endif; ?>
 
-<form method="post" id="form-cot" class="grid gap-5 pb-24 lg:grid-cols-3 lg:pb-0" data-sin-bloqueo>
+<form method="post" id="form-cot" enctype="multipart/form-data" class="grid gap-5 pb-24 lg:grid-cols-3 lg:pb-0" data-sin-bloqueo>
   <?= csrf_field() ?>
   <?php if ($cot['id']): ?><input type="hidden" name="id" value="<?= (int)$cot['id'] ?>"><?php endif; ?>
 
@@ -222,6 +238,32 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       </div>
       <div id="lineas" class="divide-y divide-slate-100"></div>
       <p id="lineas-vacio" class="py-8 text-center text-sm text-slate-400">Aun no hay productos en la cotizacion.</p>
+    </section>
+    <section class="card p-5 sm:p-6">
+      <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>Archivos adjuntos</h2>
+        <button type="button" class="btn btn-claro btn-sm" id="btn-adj-mas"><i data-lucide="plus"></i>Agregar archivo</button>
+      </div>
+      <p class="ayuda mb-4">Opcional. Anticipos, contratos, referencias... Imagenes, PDF, Word o Excel de hasta <?= e(tamano_legible($GLOBALS['CONFIG']['app']['adjunto_max'] ?? 10485760)) ?>.</p>
+      <datalist id="titulos-adjunto">
+        <?php foreach (adjuntos_titulos_sugeridos() as $t): ?><option value="<?= e($t) ?>"><?php endforeach; ?>
+      </datalist>
+      <div id="adj-filas" class="space-y-3"></div>
+      <?php if (!empty($adjuntosExistentes)): ?>
+        <div class="mt-4 border-t border-slate-100 pt-4">
+          <p class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Ya adjuntos</p>
+          <ul class="space-y-1.5 text-sm">
+            <?php foreach ($adjuntosExistentes as $a): ?>
+              <li class="flex items-center gap-2">
+                <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-4 w-4 shrink-0 text-slate-400"></i>
+                <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="truncate font-semibold text-slate-800 hover:underline"><?= e($a['titulo']) ?></a>
+                <span class="truncate text-xs text-slate-400"><?= e($a['nombre_original']) ?></span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+          <a href="cotizacion_ver.php?id=<?= (int)$cot['id'] ?>#adjuntos" class="mt-2 inline-block text-xs font-semibold texto-marca hover:underline">Administrar adjuntos</a>
+        </div>
+      <?php endif; ?>
     </section>
   </div>
 
@@ -276,6 +318,15 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     </div>
   </div>
 </form>
+
+<!-- Plantilla de adjunto -->
+<template id="tpl-adj">
+  <div class="adj-fila grid gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] sm:items-center">
+    <input class="input bg-white" name="adj_titulo[]" list="titulos-adjunto" maxlength="150" placeholder="Titulo, ej: Anticipo">
+    <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="adj_archivo[]" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.heic">
+    <button type="button" class="justify-self-end rounded-lg p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-quitar-adj aria-label="Quitar"><i data-lucide="x" class="h-4 w-4"></i></button>
+  </div>
+</template>
 
 <!-- Plantilla de linea -->
 <template id="tpl-linea">

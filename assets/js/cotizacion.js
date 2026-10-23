@@ -168,12 +168,40 @@
   D.lineas.forEach(function (l) { agregarLinea(l); });
   recalcular();
 
+  /* ================= Adjuntos ================= */
+  var adjCont = $('#adj-filas'), adjTpl = $('#tpl-adj');
+  function agregarAdj() {
+    var frag = adjTpl.content.cloneNode(true);
+    adjCont.appendChild(frag); iconos();
+    var filas = adjCont.querySelectorAll('.adj-fila');
+    return filas[filas.length - 1];
+  }
+  if (adjCont && adjTpl) {
+    agregarAdj();
+    $('#btn-adj-mas').addEventListener('click', function () { $('input', agregarAdj()).focus(); });
+    adjCont.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-quitar-adj]'); if (!b) return;
+      b.closest('.adj-fila').remove();
+      if (!adjCont.querySelector('.adj-fila')) agregarAdj();
+    });
+    // Si eligen archivo sin titulo, sugerir el nombre del archivo
+    adjCont.addEventListener('change', function (ev) {
+      if (!ev.target.matches('input[type=file]')) return;
+      var fila = ev.target.closest('.adj-fila'), t = fila.querySelector('[name="adj_titulo[]"]');
+      if (ev.target.files[0] && !t.value) t.placeholder = 'Titulo para ' + ev.target.files[0].name;
+    });
+  }
+
   /* Validacion antes de enviar */
   var form = $('#form-cot'), enviando = false;
   form.addEventListener('submit', function (ev) {
     if (enviando) { ev.preventDefault(); return; }
     if (!hidCliente.value) { ev.preventDefault(); alert('Selecciona o crea un cliente.'); inCliente.focus(); return; }
     if (!cont.querySelector('.linea-item')) { ev.preventDefault(); alert('Agrega al menos un producto o servicio.'); return; }
+    var sinTitulo = Array.prototype.filter.call(document.querySelectorAll('.adj-fila'), function (f) {
+      return f.querySelector('input[type=file]').files.length && !f.querySelector('[name="adj_titulo[]"]').value.trim();
+    });
+    if (sinTitulo.length) { ev.preventDefault(); alert('Escribe el titulo de cada archivo adjunto (ej: Anticipo).'); sinTitulo[0].querySelector('[name="adj_titulo[]"]').focus(); return; }
     enviando = true;
     Array.prototype.forEach.call(form.querySelectorAll('[type=submit]'), function (b) { b.disabled = true; });
   });

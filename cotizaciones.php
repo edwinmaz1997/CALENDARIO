@@ -111,6 +111,7 @@ require __DIR__ . '/includes/header.php';
           <div class="flex justify-end gap-1.5">
             <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>" class="btn btn-claro btn-sm btn-icono" title="Ver"><i data-lucide="eye"></i></a>
             <a href="cotizacion_pdf.php?id=<?= (int)$c['id'] ?>" target="_blank" class="btn btn-claro btn-sm btn-icono" title="PDF"><i data-lucide="file-down"></i></a>
+            <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>#adjuntos" class="btn btn-claro btn-sm btn-icono" title="Adjuntos"><i data-lucide="paperclip"></i></a>
             <?php if ($c['estado'] === 'pendiente'): ?>
               <a href="cotizacion_form.php?id=<?= (int)$c['id'] ?>" class="btn btn-claro btn-sm btn-icono" title="Editar"><i data-lucide="pencil"></i></a>
             <?php endif; ?>

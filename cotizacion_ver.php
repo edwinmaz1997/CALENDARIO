@@ -250,6 +250,7 @@ require __DIR__ . '/includes/header.php';
       <?php if ($cot['estado'] === 'pendiente'): ?>
         <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="pencil"></i>Editar</a>
       <?php endif; ?>
+      <a href="#adjuntos" class="btn btn-claro w-full"><i data-lucide="paperclip"></i>Adjuntos (<?= count($adjuntos) ?>)</a>
       <form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="duplicar">
         <button class="btn btn-claro w-full"><i data-lucide="copy"></i>Duplicar</button>
       </form>
