@@ -44,6 +44,16 @@
     });
   });
 
+  // Sin zoom en movil (iOS ignora user-scalable=no)
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  var ultimoToque = 0;
+  document.addEventListener('touchend', function (e) {
+    var ahora = Date.now();
+    if (ahora - ultimoToque < 300 && !e.target.closest('input, textarea, select, button, a, label')) e.preventDefault();
+    ultimoToque = ahora;
+  }, { passive: false });
+
   // Ocultar mensajes flash despues de un tiempo
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (el) {

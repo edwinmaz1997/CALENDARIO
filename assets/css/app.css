@@ -112,3 +112,32 @@ details.desplegable > summary .chevron { transition: transform .2s; }
 details.desplegable[open] > summary .chevron { transform: rotate(180deg); }
 details.desplegable { scroll-margin-top: 5rem; }
 #pagos { scroll-margin-top: 5rem; }
+
+/* Evita desplazamiento horizontal y zoom accidental en movil */
+html, body { overflow-x: hidden; }
+body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ===== Visor de imagenes / PDF ===== */
+html.visor-activo, html.visor-activo body { overflow: hidden; }
+.visor-capa { position: fixed; inset: 0; z-index: 100; display: none; flex-direction: column; background: #0f172a; }
+.visor-capa.abierto { display: flex; }
+.visor-barra { display: flex; align-items: center; gap: .5rem; padding: .6rem .75rem; padding-top: max(.6rem, env(safe-area-inset-top)); background: #0f172a; color: #fff; border-bottom: 1px solid rgba(255,255,255,.08); }
+.visor-titulo { flex: 1; min-width: 0; margin: 0; font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.visor-btn { display: inline-flex; align-items: center; gap: .4rem; padding: .55rem .8rem; border-radius: .7rem; background: rgba(255,255,255,.1); color: #fff; font-weight: 700; font-size: .85rem; border: 0; cursor: pointer; text-decoration: none; }
+.visor-btn:hover { background: rgba(255,255,255,.18); }
+.visor-btn svg { width: 1.1rem; height: 1.1rem; }
+@media (max-width: 480px) { .visor-txt { display: none; } }
+.visor-cuerpo { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
+.visor-imagen { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; box-sizing: border-box; }
+.visor-imagen img { max-width: 100%; max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px); object-fit: contain; border-radius: .5rem; background: #fff; }
+.visor-paginas { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; }
+.visor-pagina { background: #fff; border-radius: 4px; box-shadow: 0 4px 16px rgba(0,0,0,.35); max-width: 100%; height: auto !important; }
+.visor-cargando { color: #cbd5e1; text-align: center; padding: 3rem 1rem; font-weight: 600; }
+.visor-archivo { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 2rem; color: #e2e8f0; text-align: center; }
+
+.visor-zoom { display: flex; gap: .35rem; }
+.visor-zoom .visor-btn { padding: .55rem .6rem; }
+.visor-imagen.ampliada { display: block; overflow: visible; }
+.visor-imagen.ampliada img { max-width: none; }
+.visor-paginas.ampliada { align-items: flex-start; }
+.visor-paginas.ampliada .visor-pagina { max-width: none; }

@@ -176,7 +176,7 @@ $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER
 $autor = $cot['usuario_id'] ? db_val('SELECT nombre FROM usuarios WHERE id = ?', [$cot['usuario_id']]) : null;
 $numero = numero_cotizacion($cot, $emp);
 $logo = logo_url($emp);
-$pagos = db_all('SELECT * FROM cotizacion_pagos WHERE cotizacion_id = ? ORDER BY fecha, id', [$id]);
+$pagos = db_all('SELECT p.*, a.mime AS adj_mime FROM cotizacion_pagos p LEFT JOIN cotizacion_adjuntos a ON a.id = p.adjunto_id WHERE p.cotizacion_id = ? ORDER BY p.fecha, p.id', [$id]);
 $pagosRes = resumen_pagos($cot);
 $errorPago = !empty($_SESSION['error_pago']);
 unset($_SESSION['error_pago']);
@@ -252,7 +252,7 @@ require __DIR__ . '/includes/header.php';
 
         <div class="mt-6">
           <?php if (!empty($cot['imagen'])): ?>
-            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" target="_blank" class="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" data-visor="imagen" data-titulo="Imagen de <?= e($numero) ?>" class="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
               <img src="cotizacion_imagen.php?id=<?= (int)$id ?>&v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de la cotizacion" class="mx-auto max-h-96 w-auto object-contain">
             </a>
           <?php endif; ?>
@@ -321,7 +321,7 @@ require __DIR__ . '/includes/header.php';
                 <p class="truncate text-sm font-semibold text-slate-900"><?= e($pg['descripcion']) ?></p>
                 <p class="truncate text-xs text-slate-500">
                   <?= e(fecha($pg['fecha'])) ?><?= $pg['metodo'] ? ' · ' . e($pg['metodo']) : '' ?>
-                  <?php if ($pg['adjunto_id']): ?> · <a href="adjunto.php?id=<?= (int)$pg['adjunto_id'] ?>" target="_blank" class="inline-flex items-center gap-0.5 font-semibold texto-marca hover:underline"><i data-lucide="paperclip" class="h-3 w-3"></i>comprobante</a><?php endif; ?>
+                  <?php if ($pg['adjunto_id']): ?> · <a href="adjunto.php?id=<?= (int)$pg['adjunto_id'] ?>" <?= visor_attrs($pg['adjunto_id'], $pg['adj_mime'] ?? '', 'Comprobante: ' . $pg['descripcion']) ?> class="inline-flex items-center gap-0.5 font-semibold texto-marca hover:underline"><i data-lucide="paperclip" class="h-3 w-3"></i>comprobante</a><?php endif; ?>
                 </p>
               </div>
               <p class="shrink-0 text-sm font-bold text-slate-900"><?= e(money($pg['monto'], $emp['moneda'])) ?></p>
@@ -384,14 +384,14 @@ require __DIR__ . '/includes/header.php';
         <ul class="divide-y divide-slate-100 border-t border-slate-100 px-5 sm:px-7">
           <?php foreach ($adjuntos as $a): $img = adjunto_es_imagen($a['mime']); ?>
             <li class="flex items-center gap-3 py-2.5">
-              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" <?= visor_attrs($a['id'], $a['mime'], $a['titulo']) ?> class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
                 <?php if ($img): ?>
                   <img src="adjunto.php?id=<?= (int)$a['id'] ?>" alt="" loading="lazy" class="h-full w-full object-cover">
                 <?php else: ?>
                   <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-5 w-5"></i>
                 <?php endif; ?>
               </a>
-              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="min-w-0 flex-1">
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" <?= visor_attrs($a['id'], $a['mime'], $a['titulo']) ?> class="min-w-0 flex-1">
                 <p class="truncate text-sm font-semibold text-slate-900"><?= e($a['titulo']) ?></p>
                 <p class="truncate text-xs text-slate-500"><?= e($a['nombre_original']) ?> · <?= e(tamano_legible($a['tamano'])) ?></p>
               </a>
@@ -428,7 +428,7 @@ require __DIR__ . '/includes/header.php';
   <!-- Acciones -->
   <aside class="space-y-4">
     <div class="card space-y-2 p-5">
-      <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" target="_blank" class="btn btn-primario w-full"><i data-lucide="file-text"></i>Ver PDF</a>
+      <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-primario w-full"><i data-lucide="file-text"></i>Ver PDF</a>
       <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&descargar=1" class="btn btn-claro w-full"><i data-lucide="download"></i>Descargar PDF</a>
       <?php if ($cot['estado'] === 'pendiente'): ?>
         <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="pencil"></i>Editar</a>

@@ -141,3 +141,10 @@ function borrar_archivo_adjunto($empresaId, $archivo)
         @unlink($p);
     }
 }
+
+/** Atributos para abrir el adjunto en el visor interno (imagen, PDF u otro archivo) */
+function visor_attrs($id, $mime, $titulo)
+{
+    $tipo = adjunto_es_imagen($mime) ? 'imagen' : ($mime === 'application/pdf' ? 'pdf' : 'archivo');
+    return 'data-visor="' . $tipo . '" data-titulo="' . e($titulo) . '" data-descarga="adjunto.php?id=' . (int)$id . '&amp;descargar=1"';
+}

@@ -6,6 +6,7 @@
 </div>
 
 <script src="assets/js/app.js?v=<?= ASSET_V ?>"></script>
+<script src="assets/js/visor.js?v=<?= ASSET_V ?>"></script>
 <?= $extraScripts ?? '' ?>
 </body>
 </html>

@@ -280,7 +280,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
             <?php foreach ($adjuntosExistentes as $a): ?>
               <li class="flex items-center gap-2">
                 <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-4 w-4 shrink-0 text-slate-400"></i>
-                <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="truncate font-semibold text-slate-800 hover:underline"><?= e($a['titulo']) ?></a>
+                <a href="adjunto.php?id=<?= (int)$a['id'] ?>" <?= visor_attrs($a['id'], $a['mime'], $a['titulo']) ?> class="truncate font-semibold text-slate-800 hover:underline"><?= e($a['titulo']) ?></a>
                 <span class="truncate text-xs text-slate-400"><?= e($a['nombre_original']) ?></span>
               </li>
             <?php endforeach; ?>
