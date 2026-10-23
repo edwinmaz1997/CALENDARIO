@@ -39,4 +39,19 @@ return [
             'pass'   => 'CAMBIAR',
         ],
     ],
+    'deploy' => [
+        // Secreto compartido con el webhook de GitHub (Settings > Webhooks > Secret)
+        'secret' => 'CAMBIAR_POR_EL_SECRETO_DEL_WEBHOOK',
+        // Rama que se publica en este servidor
+        'branch' => 'dev',
+        // Ruta del repositorio en el servidor (Git Version Control > Repository Path)
+        'path'   => '/home/estudiocero/calendario.nuevaexpress.com',
+        // Opcional: solo si el hosting no permite ejecutar git desde PHP.
+        // Token creado en cPanel > Security > Manage API Tokens.
+        'cpanel' => [
+            'host'  => 'localhost',
+            'user'  => '',
+            'token' => '',
+        ],
+    ],
 ];
