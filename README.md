@@ -62,10 +62,21 @@ No se necesita Composer ni terminal: FPDF, PHPMailer, FullCalendar, Lucide y el 
 | `assets/` | CSS, JS y librerias de terceros |
 | `uploads/` | Logos y adjuntos subidos (no se versionan) |
 
-## Ramas
+## Ramas y despliegue
 
-- `dev`: desarrollo.
-- `produccion`: lo que esta publicado en el hosting.
+- `dev`: desarrollo. Cada push a `dev` se publica solo en el hosting con GitHub Actions por FTP (`.github/workflows/deploy.yml`).
+- `produccion`: version estable.
+
+Secretos requeridos en GitHub (Settings > Secrets and variables > Actions):
+
+| Secreto | Ejemplo |
+|---|---|
+| `FTP_SERVER` | `ftp.estudiocero.com.gt` |
+| `FTP_USERNAME` | usuario FTP |
+| `FTP_PASSWORD` | contrasena FTP |
+| `FTP_SERVER_DIR` | `./` si la cuenta FTP apunta a la carpeta del sistema, o `calendario.nuevaexpress.com/` si apunta a la raiz de la cuenta |
+
+El despliegue no sube `config/config.php` ni los logos y adjuntos.
 
 ## Desarrollo de estilos
 

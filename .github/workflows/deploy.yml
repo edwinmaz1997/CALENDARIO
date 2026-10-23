@@ -1,0 +1,42 @@
+name: Deploy a cPanel (FTP)
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cpanel
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Subir cambios por FTP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+
+      - name: Desplegar por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Carpeta destino relativa a la raiz de la cuenta FTP (termina en /)
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            node_modules/**
+            config/config.php
+            uploads/logos/*.png
+            uploads/logos/*.jpg
+            uploads/adjuntos/*/**
+            cron/*.log
+            cron/*.log.1
+            tailwind.config.js
+            package.json
+            assets/css/tailwind.src.css
