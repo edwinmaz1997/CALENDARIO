@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   lugar_evento     VARCHAR(255) NULL,
   estado           ENUM('pendiente','aceptada','rechazada') NOT NULL DEFAULT 'pendiente',
   notas            TEXT         NULL,
+  imagen           VARCHAR(255) NULL,
   total            DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   fecha_aceptacion DATETIME     NULL,
   recordatorio_enviado DATETIME NULL,

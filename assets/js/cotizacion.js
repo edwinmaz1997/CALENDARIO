@@ -192,6 +192,16 @@
     });
   }
 
+  /* ================= Imagen ================= */
+  var imgIn = $('#img-input');
+  if (imgIn) {
+    imgIn.addEventListener('change', function () {
+      var f = imgIn.files[0]; if (!f) return;
+      $('#img-prev').src = URL.createObjectURL(f);
+      $('#img-caja').classList.remove('hidden');
+    });
+  }
+
   /* Validacion antes de enviar */
   var form = $('#form-cot'), enviando = false;
   form.addEventListener('submit', function (ev) {

@@ -378,6 +378,34 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
         $pdf->SetTextColor(71, 85, 105);
         $pdf->MultiCell($anchoUtil, 4.3, pdf_txt($texto), 0, 'L');
     };
+    /* ---------- Imagen de la cotizacion ---------- */
+    if (!empty($cot['imagen'])) {
+        require_once APP_ROOT . '/includes/imagen_cotizacion.php';
+        $rutaImg = imagen_cot_path($cot['empresa_id'], $cot['imagen']);
+        $infoImg = $rutaImg ? @getimagesize($rutaImg) : null;
+        if ($infoImg && $infoImg[0] > 0 && $infoImg[1] > 0) {
+            $maxW = $anchoUtil;
+            $maxH = 90;
+            $ratio = $infoImg[0] / $infoImg[1];
+            $w = $maxW;
+            $h = $w / $ratio;
+            if ($h > $maxH) {
+                $h = $maxH;
+                $w = $h * $ratio;
+            }
+            if ($pdf->GetY() + $h + 8 > $pdf->GetPageHeight() - 24) {
+                $pdf->AddPage();
+            }
+            $pdf->Ln(6);
+            try {
+                $pdf->Image($rutaImg, 15 + ($anchoUtil - $w) / 2, $pdf->GetY(), $w, $h);
+                $pdf->SetY($pdf->GetY() + $h);
+            } catch (Exception $ex) {
+                // Imagen en formato no soportado por FPDF: se omite
+            }
+        }
+    }
+
     $textoBloque('Notas', $cot['notas'], 9);
     $textoBloque('Condiciones', $emp['pie_cotizacion'], 8);
 

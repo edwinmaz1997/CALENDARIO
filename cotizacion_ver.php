@@ -2,6 +2,7 @@
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/adjuntos.php';
 require __DIR__ . '/includes/pagos.php';
+require __DIR__ . '/includes/imagen_cotizacion.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -52,6 +53,13 @@ if (is_post()) {
             db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, descripcion, unidad, cantidad, precio_unitario, subtotal, orden)
                      SELECT ?, producto_id, descripcion, unidad, cantidad, precio_unitario, subtotal, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
             $pdo->commit();
+            $origen = imagen_cot_path($eid, $cot['imagen']);
+            if ($origen) {
+                $copia = 'img_cot' . $nuevo . '_' . bin2hex(random_bytes(6)) . '.' . pathinfo($origen, PATHINFO_EXTENSION);
+                if (@copy($origen, dirname($origen) . '/' . $copia)) {
+                    db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$copia, $nuevo]);
+                }
+            }
             flash('ok', 'Cotizacion duplicada como pendiente. Revisa la fecha del evento.');
             redirect('cotizacion_form.php?id=' . $nuevo);
         } catch (Exception $ex) {
@@ -67,8 +75,26 @@ if (is_post()) {
             foreach ($archivos as $a) {
                 borrar_archivo_adjunto($eid, $a['archivo']);
             }
+            borrar_imagen_cot($eid, $cot['imagen']);
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
+        }
+    } elseif ($accion === 'imagen') {
+        if (input('hacer') === 'quitar') {
+            borrar_imagen_cot($eid, $cot['imagen']);
+            db_exec('UPDATE cotizaciones SET imagen = NULL WHERE id = ?', [$id]);
+            flash('ok', 'Imagen quitada de la cotizacion.');
+        } else {
+            list($nueva, $err) = guardar_imagen_cot('imagen', $eid, $id);
+            if ($err) {
+                flash('error', $err);
+            } elseif ($nueva) {
+                borrar_imagen_cot($eid, $cot['imagen']);
+                db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$nueva, $id]);
+                flash('ok', 'Imagen guardada. Ya aparece en el PDF.');
+            } else {
+                flash('error', 'Selecciona una imagen.');
+            }
         }
     } elseif ($accion === 'registrar_pago') {
         $desc = input('pago_descripcion');
@@ -222,6 +248,29 @@ require __DIR__ . '/includes/header.php';
             <span class="text-sm font-semibold">TOTAL</span>
             <span class="text-xl font-extrabold"><?= e(money($cot['total'], $emp['moneda'])) ?></span>
           </div>
+        </div>
+
+        <div class="mt-6">
+          <?php if (!empty($cot['imagen'])): ?>
+            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" target="_blank" class="block overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              <img src="cotizacion_imagen.php?id=<?= (int)$id ?>&v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de la cotizacion" class="mx-auto max-h-96 w-auto object-contain">
+            </a>
+          <?php endif; ?>
+          <details class="desplegable mt-2">
+            <summary class="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-semibold texto-marca hover:underline">
+              <i data-lucide="image" class="h-4 w-4"></i><?= !empty($cot['imagen']) ? 'Cambiar o quitar imagen' : 'Agregar imagen a la cotizacion (opcional)' ?>
+            </summary>
+            <form method="post" enctype="multipart/form-data" class="mt-3 flex flex-col gap-3 rounded-xl bg-slate-50 p-4 sm:flex-row sm:items-center">
+              <?= csrf_field() ?><input type="hidden" name="accion" value="imagen">
+              <input class="input flex-1 bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagen" accept="image/jpeg,image/png">
+              <div class="flex gap-2">
+                <button class="btn btn-primario btn-sm" name="hacer" value="subir"><i data-lucide="upload"></i>Guardar</button>
+                <?php if (!empty($cot['imagen'])): ?>
+                  <button class="btn btn-claro btn-sm text-rose-600" name="hacer" value="quitar" formnovalidate onclick="return confirm('Quitar la imagen de la cotizacion?')"><i data-lucide="trash-2"></i>Quitar</button>
+                <?php endif; ?>
+              </div>
+            </form>
+          </details>
         </div>
 
         <?php if ($cot['notas']): ?>

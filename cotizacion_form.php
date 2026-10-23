@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/adjuntos.php';
+require __DIR__ . '/includes/imagen_cotizacion.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -133,6 +134,22 @@ if (is_post()) {
             }
             $pdo->commit();
             flash('ok', $cot['id'] ? 'Cotizacion actualizada.' : 'Cotizacion creada como pendiente.');
+            // Imagen de la cotizacion
+            $imgActual = db_val('SELECT imagen FROM cotizaciones WHERE id = ?', [$id]);
+            if (!empty($_POST['quitar_imagen']) && $imgActual) {
+                borrar_imagen_cot($eid, $imgActual);
+                db_exec('UPDATE cotizaciones SET imagen = NULL WHERE id = ?', [$id]);
+                $imgActual = null;
+            }
+            list($imgNueva, $imgErr) = guardar_imagen_cot('imagen', $eid, $id);
+            if ($imgErr) {
+                flash('error', 'Imagen: ' . $imgErr);
+            } elseif ($imgNueva) {
+                if ($imgActual) {
+                    borrar_imagen_cot($eid, $imgActual);
+                }
+                db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$imgNueva, $id]);
+            }
             // Adjuntos agregados en el formulario
             if (!empty($_FILES['adj_archivo']['name']) && array_filter((array)$_FILES['adj_archivo']['name'])) {
                 list($nAdj, $errAdj) = subir_adjuntos('adj_archivo', $id, $eid, $_POST['adj_titulo'] ?? [], $u['id']);
@@ -294,6 +311,20 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         </label>
       </div>
       <p class="ayuda mt-3">La cotizacion se crea como <strong>pendiente</strong>. Cuando la marques como aceptada aparecera en el calendario en la fecha del evento.</p>
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="image" class="h-5 w-5 texto-marca"></i>Imagen <span class="text-xs font-normal text-slate-400">(opcional)</span></h2>
+      <p class="ayuda mb-3">Se muestra en la cotizacion y en el PDF. Ej: referencia del montaje o la decoracion.</p>
+      <?php $tieneImg = !empty($cot['imagen']) && $cot['id']; ?>
+      <div id="img-caja" class="mb-3 flex h-40 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 <?= $tieneImg ? '' : 'hidden' ?>">
+        <img id="img-prev" src="<?= $tieneImg ? 'cotizacion_imagen.php?id=' . (int)$cot['id'] . '&v=' . e(substr(md5($cot['imagen']), 0, 6)) : '' ?>" alt="" class="max-h-full max-w-full object-contain">
+      </div>
+      <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagen" id="img-input" accept="image/jpeg,image/png">
+      <p class="ayuda">JPG o PNG.</p>
+      <?php if ($tieneImg): ?>
+        <label class="mt-2 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="quitar_imagen" value="1" class="rounded"> Quitar imagen actual</label>
+      <?php endif; ?>
     </section>
 
     <section class="card p-5 sm:p-6">
