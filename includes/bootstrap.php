@@ -3,7 +3,7 @@
  * Punto de arranque comun: configuracion, sesion, conexion y utilidades.
  */
 define('APP_ROOT', dirname(__DIR__));
-define('ASSET_V', '1.0.0');
+define('ASSET_V', '1.1.0');
 
 $configFile = APP_ROOT . '/config/config.php';
 if (!is_file($configFile)) {
@@ -21,7 +21,7 @@ if (!empty($GLOBALS['CONFIG']['app']['debug'])) {
     ini_set('display_errors', '0');
 }
 
-if (session_status() === PHP_SESSION_NONE) {
+if (!defined('SIN_SESION') && PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
     $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
     session_name('COTIZADORSESS');
     session_set_cookie_params([

@@ -1,6 +1,8 @@
 config/config.php
 uploads/logos/*
 !uploads/logos/.gitkeep
+uploads/adjuntos/*
+!uploads/adjuntos/.htaccess
 .DS_Store
 Thumbs.db
 *.log

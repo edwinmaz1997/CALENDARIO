@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+require __DIR__ . '/includes/adjuntos.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -14,6 +15,11 @@ if (!$cot) {
 
 /* ---------- Acciones ---------- */
 if (is_post()) {
+    // Si los archivos superan post_max_size, PHP llega con $_POST vacio
+    if (empty($_POST) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+        flash('error', 'Los archivos superan el limite de subida del servidor (' . ini_get('post_max_size') . ').');
+        redirect('cotizacion_ver.php?id=' . $id . '#adjuntos');
+    }
     csrf_check();
     $accion = input('accion');
 
@@ -24,14 +30,14 @@ if (is_post()) {
             flash('error', 'La fecha del evento no es valida.');
         } else {
             $he = preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $he) ? $he : null;
-            db_exec('UPDATE cotizaciones SET estado = \'aceptada\', fecha_evento = ?, hora_evento = ?, fecha_aceptacion = NOW() WHERE id = ? AND empresa_id = ?', [$fe, $he, $id, $eid]);
+            db_exec('UPDATE cotizaciones SET estado = \'aceptada\', fecha_evento = ?, hora_evento = ?, fecha_aceptacion = NOW(), recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$fe, $he, $id, $eid]);
             flash('ok', 'Cotizacion aceptada. El evento quedo agendado el ' . fecha_larga($fe) . '.');
         }
     } elseif ($accion === 'rechazar' && $cot['estado'] !== 'rechazada') {
-        db_exec('UPDATE cotizaciones SET estado = \'rechazada\', fecha_aceptacion = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        db_exec('UPDATE cotizaciones SET estado = \'rechazada\', fecha_aceptacion = NULL, recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Cotizacion marcada como rechazada.');
     } elseif ($accion === 'pendiente' && $cot['estado'] !== 'pendiente') {
-        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL, recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'La cotizacion regreso a pendiente' . ($cot['estado'] === 'aceptada' ? ' y se quito del calendario.' : '.'));
     } elseif ($accion === 'duplicar') {
         $pdo = db();
@@ -55,19 +61,52 @@ if (is_post()) {
         if ($cot['estado'] === 'aceptada') {
             flash('error', 'No se puede eliminar una cotizacion aceptada. Regresala a pendiente primero.');
         } else {
+            $archivos = db_all('SELECT archivo FROM cotizacion_adjuntos WHERE cotizacion_id = ?', [$id]);
             db_exec('DELETE FROM cotizaciones WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+            foreach ($archivos as $a) {
+                borrar_archivo_adjunto($eid, $a['archivo']);
+            }
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
         }
+    } elseif ($accion === 'adjuntar') {
+        $tituloAdj = input('titulo');
+        if ($tituloAdj === '') {
+            flash('error', 'Escribe un titulo para el adjunto (por ejemplo: Anticipo).');
+        } else {
+            list($n, $errs) = subir_adjuntos('archivos', $id, $eid, $tituloAdj, usuario_actual()['id']);
+            if ($n) {
+                flash('ok', $n === 1 ? 'Archivo adjuntado.' : $n . ' archivos adjuntados.');
+            }
+            foreach ($errs as $er) {
+                flash('error', $er);
+            }
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#adjuntos');
+    } elseif ($accion === 'quitar_adjunto') {
+        $adj = db_one('SELECT * FROM cotizacion_adjuntos WHERE id = ? AND cotizacion_id = ?', [input_int('adjunto_id'), $id]);
+        if ($adj) {
+            db_exec('DELETE FROM cotizacion_adjuntos WHERE id = ?', [$adj['id']]);
+            borrar_archivo_adjunto($eid, $adj['archivo']);
+            flash('ok', 'Adjunto "' . $adj['titulo'] . '" eliminado.');
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#adjuntos');
+    } elseif ($accion === 'recordatorio' && $cot['estado'] === 'aceptada') {
+        require_once APP_ROOT . '/includes/recordatorios.php';
+        list($ok, $msg) = enviar_recordatorio($id);
+        flash($ok ? 'ok' : 'error', $msg);
     }
     redirect('cotizacion_ver.php?id=' . $id);
 }
+
 
 $cliente = db_one('SELECT * FROM clientes WHERE id = ?', [$cot['cliente_id']]);
 $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
 $autor = $cot['usuario_id'] ? db_val('SELECT nombre FROM usuarios WHERE id = ?', [$cot['usuario_id']]) : null;
 $numero = numero_cotizacion($cot, $emp);
 $logo = logo_url($emp);
+$adjuntos = db_all('SELECT * FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY created_at DESC, id DESC', [$id]);
+$maxAdj = $GLOBALS['CONFIG']['app']['adjunto_max'] ?? 10485760;
 
 $titulo = $numero;
 $activo = 'cotizaciones';
@@ -147,6 +186,60 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
     </article>
+
+    <!-- Adjuntos -->
+    <section id="adjuntos" class="card mt-5 overflow-hidden">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-7">
+        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>Archivos adjuntos</h2>
+        <span class="text-xs text-slate-500"><?= count($adjuntos) ?> archivo<?= count($adjuntos) === 1 ? '' : 's' ?></span>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" class="grid gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end sm:px-7" id="form-adjunto">
+        <?= csrf_field() ?><input type="hidden" name="accion" value="adjuntar">
+        <label class="campo"><span>Titulo *</span>
+          <input class="input" name="titulo" list="titulos-adjunto" maxlength="150" placeholder="Ej: Anticipo" required>
+          <datalist id="titulos-adjunto">
+            <?php foreach (adjuntos_titulos_sugeridos() as $t): ?><option value="<?= e($t) ?>"><?php endforeach; ?>
+          </datalist>
+        </label>
+        <label class="campo"><span>Archivo o imagen *</span>
+          <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="archivos[]" multiple required
+                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.heic" id="input-adjunto">
+        </label>
+        <button type="submit" class="btn btn-primario"><i data-lucide="upload"></i>Subir</button>
+        <p class="ayuda sm:col-span-3 -mt-1">Imagenes, PDF, Word o Excel. Maximo <?= e(tamano_legible($maxAdj)) ?> por archivo. Puedes seleccionar varios a la vez o tomar una foto desde el celular.</p>
+      </form>
+
+      <?php if (!$adjuntos): ?>
+        <p class="px-5 py-8 text-center text-sm text-slate-400 sm:px-7">Aun no hay archivos. Adjunta comprobantes de anticipo, contratos o referencias.</p>
+      <?php else: ?>
+        <ul class="grid gap-3 p-5 sm:grid-cols-2 sm:px-7">
+          <?php foreach ($adjuntos as $a): $img = adjunto_es_imagen($a['mime']); ?>
+            <li class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
+                <?php if ($img): ?>
+                  <img src="adjunto.php?id=<?= (int)$a['id'] ?>" alt="" loading="lazy" class="h-full w-full object-cover">
+                <?php else: ?>
+                  <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-7 w-7"></i>
+                <?php endif; ?>
+              </a>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-slate-900"><?= e($a['titulo']) ?></p>
+                <p class="truncate text-xs text-slate-500" title="<?= e($a['nombre_original']) ?>"><?= e($a['nombre_original']) ?></p>
+                <p class="text-xs text-slate-400"><?= e(tamano_legible($a['tamano'])) ?> · <?= e(fecha($a['created_at'], true)) ?></p>
+              </div>
+              <div class="flex shrink-0 flex-col gap-1">
+                <a href="adjunto.php?id=<?= (int)$a['id'] ?>&descargar=1" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Descargar"><i data-lucide="download" class="h-4 w-4"></i></a>
+                <form method="post" data-confirmar="Eliminar el adjunto &quot;<?= e($a['titulo']) ?>&quot;?">
+                  <?= csrf_field() ?><input type="hidden" name="accion" value="quitar_adjunto"><input type="hidden" name="adjunto_id" value="<?= (int)$a['id'] ?>">
+                  <button class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Eliminar"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                </form>
+              </div>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php endif; ?>
+    </section>
   </div>
 
   <!-- Acciones -->
@@ -180,6 +273,22 @@ require __DIR__ . '/includes/header.php';
           <p class="font-semibold">Aceptada<?= $cot['fecha_aceptacion'] ? ' el ' . e(fecha($cot['fecha_aceptacion'], true)) : '' ?></p>
           <p>Agendada en el calendario para el <?= e(fecha_larga($cot['fecha_evento'])) ?>.</p>
           <a class="mt-2 inline-flex items-center gap-1 font-semibold hover:underline" href="index.php?fecha=<?= e($cot['fecha_evento']) ?>"><i data-lucide="calendar" class="h-4 w-4"></i>Ver en calendario</a>
+        </div>
+        <div class="mt-3 rounded-xl border border-slate-200 p-4 text-sm">
+          <p class="flex items-center gap-2 font-semibold text-slate-800"><i data-lucide="mail" class="h-4 w-4"></i>Recordatorio por correo</p>
+          <?php if (empty($emp['correo'])): ?>
+            <p class="mt-1 text-xs text-amber-700">La empresa no tiene correo. Agregalo en <a href="mi_empresa.php" class="font-semibold underline">Mi empresa</a> para recibir el aviso un dia antes.</p>
+          <?php elseif ($cot['recordatorio_enviado']): ?>
+            <p class="mt-1 text-xs text-slate-500">Enviado a <?= e($emp['correo']) ?> el <?= e(fecha($cot['recordatorio_enviado'], true)) ?>.</p>
+          <?php else: ?>
+            <p class="mt-1 text-xs text-slate-500">Se enviara a <?= e($emp['correo']) ?> el <?= e(fecha(date('Y-m-d', strtotime($cot['fecha_evento'] . ' -1 day')))) ?>.</p>
+          <?php endif; ?>
+          <?php if (!empty($emp['correo'])): ?>
+            <form method="post" class="mt-2" data-confirmar="Enviar el recordatorio ahora a <?= e($emp['correo']) ?>?">
+              <?= csrf_field() ?><input type="hidden" name="accion" value="recordatorio">
+              <button class="text-xs font-semibold texto-marca hover:underline"><?= $cot['recordatorio_enviado'] ? 'Reenviar ahora' : 'Enviar ahora' ?></button>
+            </form>
+          <?php endif; ?>
         </div>
       <?php endif; ?>
 

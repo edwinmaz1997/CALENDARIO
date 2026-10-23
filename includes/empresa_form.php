@@ -120,6 +120,7 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
             </label>
             <label class="campo"><span>Correo</span>
               <input class="input" type="email" name="correo" value="<?= e($emp['correo']) ?>" maxlength="150">
+              <p class="ayuda">Aqui llega el recordatorio un dia antes de cada evento confirmado.</p>
             </label>
             <label class="campo"><span>Sitio web / redes</span>
               <input class="input" name="sitio_web" value="<?= e($emp['sitio_web']) ?>" maxlength="150">

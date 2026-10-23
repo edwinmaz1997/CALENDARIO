@@ -41,7 +41,7 @@ if ($q !== '') {
 }
 
 $pag = paginar((int)db_val("SELECT COUNT(*) FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id WHERE $where", $params));
-$cots = db_all("SELECT c.*, cl.nombre AS cliente FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
+$cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE $where ORDER BY c.id DESC LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
 
 $conteos = [];
@@ -98,7 +98,7 @@ require __DIR__ . '/includes/header.php';
       <tr>
         <td class="td-principal">
           <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>" class="font-bold texto-marca hover:underline"><?= e(numero_cotizacion($c, $emp)) ?></a>
-          <p class="text-xs text-slate-500">Creada <?= e(fecha($c['fecha'])) ?></p>
+          <p class="text-xs text-slate-500">Creada <?= e(fecha($c['fecha'])) ?><?php if ((int)$c['adjuntos']): ?> · <span class="inline-flex items-center gap-0.5" title="Archivos adjuntos"><i data-lucide="paperclip" class="h-3 w-3"></i><?= (int)$c['adjuntos'] ?></span><?php endif; ?></p>
         </td>
         <td data-label="Cliente" class="font-medium text-slate-800"><?= e($c['cliente']) ?></td>
         <td data-label="Evento">

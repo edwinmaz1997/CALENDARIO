@@ -4,7 +4,7 @@ Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
   # Bloquear acceso directo a carpetas internas
-  RewriteRule ^(includes|config|sql|lib)(/|$) - [F,L]
+  RewriteRule ^(includes|config|sql|lib|cron|uploads/adjuntos)(/|$) - [F,L]
   # Bloquear archivos ocultos (.git, .env, etc.)
   RewriteRule (^|/)\. - [F,L]
 </IfModule>
