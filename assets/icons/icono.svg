@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="cabecera" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F87171"/>
+      <stop offset="1" stop-color="#DC2626"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#fondo)"/>
+  <!-- Hoja del calendario (dentro de la zona segura para iconos adaptables) -->
+  <rect x="118" y="140" width="276" height="250" rx="30" fill="#FFFFFF"/>
+  <path d="M118 170a30 30 0 0 1 30-30h216a30 30 0 0 1 30 30v40H118z" fill="url(#cabecera)"/>
+  <!-- Argollas -->
+  <rect x="174" y="116" width="22" height="58" rx="11" fill="#E2E8F0"/>
+  <rect x="316" y="116" width="22" height="58" rx="11" fill="#E2E8F0"/>
+  <!-- Dias -->
+  <g fill="#CBD5E1">
+    <rect x="152" y="236" width="36" height="28" rx="7"/>
+    <rect x="200" y="236" width="36" height="28" rx="7"/>
+    <rect x="248" y="236" width="36" height="28" rx="7"/>
+    <rect x="296" y="236" width="36" height="28" rx="7"/>
+    <rect x="152" y="276" width="36" height="28" rx="7"/>
+    <rect x="200" y="276" width="36" height="28" rx="7"/>
+    <rect x="296" y="276" width="36" height="28" rx="7"/>
+    <rect x="152" y="316" width="36" height="28" rx="7"/>
+    <rect x="200" y="316" width="36" height="28" rx="7"/>
+    <rect x="248" y="316" width="36" height="28" rx="7"/>
+  </g>
+  <!-- Dia marcado -->
+  <rect x="248" y="276" width="36" height="28" rx="7" fill="#F59E0B"/>
+  <!-- Insignia de confirmado -->
+  <circle cx="352" cy="352" r="50" fill="#10B981" stroke="#FFFFFF" stroke-width="12"/>
+  <path d="M330 353l15 15 30-32" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

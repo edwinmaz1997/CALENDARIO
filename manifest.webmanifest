@@ -1,0 +1,25 @@
+{
+  "name": "Cotizador y Calendario",
+  "short_name": "Cotizador",
+  "description": "Cotizaciones, pagos y calendario de eventos.",
+  "lang": "es",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./index.php?origen=app",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F5F9",
+  "theme_color": "#1E40AF",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "assets/icons/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icono-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nueva cotizacion", "short_name": "Nueva", "url": "./cotizacion_form.php", "icons": [{ "src": "assets/icons/icono-192.png", "sizes": "192x192" }] },
+    { "name": "Cotizaciones", "url": "./cotizaciones.php", "icons": [{ "src": "assets/icons/icono-192.png", "sizes": "192x192" }] }
+  ]
+}

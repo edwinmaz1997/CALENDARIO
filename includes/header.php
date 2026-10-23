@@ -34,6 +34,7 @@ if ($_u && $_u['rol'] === 'admin') {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="<?= e($_c1) ?>">
+<?php include __DIR__ . '/pwa_head.php'; ?>
 <title><?= e($titulo) ?> · <?= e($_emp['nombre'] ?? $_appNombre) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,6 +42,7 @@ if ($_u && $_u['rol'] === 'admin') {
 <link rel="stylesheet" href="assets/css/app.css?v=<?= ASSET_V ?>">
 <link rel="stylesheet" href="assets/css/tailwind.css?v=<?= ASSET_V ?>">
 <script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/js/pwa.js?v=<?= ASSET_V ?>" defer></script>
 <style>
   :root { --c1: <?= e($_c1) ?>; --c2: <?= e($_c2) ?>; --c1-txt: <?= e(color_texto($_c1)) ?>; --c2-txt: <?= e(color_texto($_c2)) ?>; }
 </style>
@@ -88,6 +90,7 @@ if ($_u && $_u['rol'] === 'admin') {
   </nav>
 
   <div class="border-t border-slate-200 px-3 py-3">
+    <a href="#" data-instalar-app class="nav-link hidden texto-marca"><i data-lucide="smartphone" class="h-5 w-5"></i><span>Instalar app</span></a>
     <a href="perfil.php" class="nav-link <?= $activo === 'perfil' ? 'nav-on' : '' ?>"><i data-lucide="user-circle" class="h-5 w-5"></i><span>Mi perfil</span></a>
     <a href="logout.php" class="nav-link text-rose-600 hover:bg-rose-50"><i data-lucide="log-out" class="h-5 w-5"></i><span>Cerrar sesion</span></a>
   </div>

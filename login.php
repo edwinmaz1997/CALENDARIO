@@ -36,11 +36,14 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1E40AF">
 <title>Ingresar · <?= e($appNombre) ?></title>
+<?php include __DIR__ . '/includes/pwa_head.php'; ?>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/app.css?v=<?= ASSET_V ?>">
 <link rel="stylesheet" href="assets/css/tailwind.css?v=<?= ASSET_V ?>">
 <script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/js/pwa.js?v=<?= ASSET_V ?>" defer></script>
 <style>
   :root { --c1: #1E40AF; --c2: #F59E0B; --c1-txt: #fff; --c2-txt: #111827; }
   /* Login fijo: sin scroll ni zoom en movil */
@@ -66,7 +69,7 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
   <div class="relative flex w-full items-center justify-center px-5 lg:w-[480px] lg:bg-white" style="padding-bottom: env(safe-area-inset-bottom)">
     <div class="w-full max-w-sm">
       <div class="mb-8 flex items-center gap-3">
-        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1E40AF] text-white"><i data-lucide="file-text" class="h-6 w-6"></i></div>
+        <img src="assets/icons/icono-192.png" alt="" class="h-12 w-12 rounded-2xl shadow-md">
         <div>
           <p class="text-xl font-extrabold text-slate-900"><?= e($appNombre) ?></p>
           <p class="text-sm text-slate-500">Ingresa con tu usuario</p>
@@ -94,6 +97,7 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
         </label>
         <button type="submit" class="btn btn-primario w-full py-3 text-base">Ingresar <i data-lucide="arrow-right"></i></button>
       </form>
+      <button type="button" data-instalar-app class="btn btn-claro mt-3 hidden w-full"><i data-lucide="smartphone"></i>Instalar como aplicacion</button>
     </div>
     <p class="absolute inset-x-0 bottom-0 px-4 pb-4 text-center text-xs text-slate-400" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">Diseñado por Edwin Mazariegos - 31586340</p>
   </div>
