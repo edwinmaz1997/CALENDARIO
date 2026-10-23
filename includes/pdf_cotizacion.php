@@ -309,6 +309,55 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
     $pdf->SetFont('Helvetica', 'B', 14);
     $pdf->Cell($wTot - 28, 11, pdf_txt(money($cot['total'], $moneda)), 0, 1, 'R', true);
 
+    /* ---------- Pagos recibidos ---------- */
+    $pagos = db_all('SELECT fecha, descripcion, metodo, monto FROM cotizacion_pagos WHERE cotizacion_id = ? ORDER BY fecha, id', [$cot['id']]);
+    if ($pagos) {
+        $pagado = 0;
+        foreach ($pagos as $pg) {
+            $pagado += (float)$pg['monto'];
+        }
+        $saldo = round((float)$cot['total'] - $pagado, 2);
+        $alto = 8 + count($pagos) * 5.5 + 16;
+        if ($pdf->GetY() + $alto > $pdf->GetPageHeight() - 24) {
+            $pdf->AddPage();
+        }
+        $pdf->Ln(6);
+        $pdf->SetFont('Helvetica', 'B', 7.5);
+        $pdf->SetTextColor($c1[0], $c1[1], $c1[2]);
+        $pdf->Cell(0, 5, pdf_txt('PAGOS RECIBIDOS'), 0, 1);
+        $pdf->SetDrawColor(226, 232, 240);
+        $pdf->SetLineWidth(0.2);
+        foreach ($pagos as $pg) {
+            $pdf->SetFont('Helvetica', '', 8.5);
+            $pdf->SetTextColor(100, 116, 139);
+            $pdf->Cell(22, 5.5, fecha($pg['fecha']), 'B', 0, 'L');
+            $pdf->SetTextColor(15, 23, 42);
+            $txt = $pg['descripcion'] . ($pg['metodo'] ? ' (' . $pg['metodo'] . ')' : '');
+            $pdf->Cell($anchoUtil - 22 - 35, 5.5, pdf_txt(mb_strimwidth($txt, 0, 90, '...')), 'B', 0, 'L');
+            $pdf->SetFont('Helvetica', 'B', 8.5);
+            $pdf->Cell(35, 5.5, pdf_txt(money($pg['monto'], $moneda)), 'B', 1, 'R');
+        }
+        $pdf->Ln(2);
+        $pdf->SetX(15 + $anchoUtil - $wTot);
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->SetTextColor(71, 85, 105);
+        $pdf->Cell(40, 6, pdf_txt('Total pagado'), 0, 0, 'L');
+        $pdf->SetFont('Helvetica', 'B', 9.5);
+        $pdf->SetTextColor(5, 150, 105);
+        $pdf->Cell($wTot - 40, 6, pdf_txt(money($pagado, $moneda)), 0, 1, 'R');
+        $pdf->SetX(15 + $anchoUtil - $wTot);
+        $pdf->SetFont('Helvetica', '', 9);
+        $pdf->SetTextColor(71, 85, 105);
+        $pdf->Cell(40, 7, pdf_txt($saldo > 0 ? 'Saldo pendiente' : 'Saldo'), 'T', 0, 'L');
+        $pdf->SetFont('Helvetica', 'B', 11);
+        if ($saldo > 0) {
+            $pdf->SetTextColor(225, 29, 72);
+        } else {
+            $pdf->SetTextColor(5, 150, 105);
+        }
+        $pdf->Cell($wTot - 40, 7, pdf_txt($saldo > 0 ? money($saldo, $moneda) : 'PAGADO'), 'T', 1, 'R');
+    }
+
     /* ---------- Notas y pie ---------- */
     $textoBloque = function ($titulo, $texto, $tam) use ($pdf, $c1, $anchoUtil) {
         if (trim((string)$texto) === '') {

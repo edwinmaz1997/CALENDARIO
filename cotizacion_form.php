@@ -239,9 +239,16 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       <div id="lineas" class="divide-y divide-slate-100"></div>
       <p id="lineas-vacio" class="py-8 text-center text-sm text-slate-400">Aun no hay productos en la cotizacion.</p>
     </section>
-    <section class="card p-5 sm:p-6">
-      <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>Archivos adjuntos</h2>
+    <details class="desplegable card overflow-hidden" id="adjuntos-form">
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
+        <i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>
+        <span class="text-base font-bold text-slate-900">Archivos adjuntos</span>
+        <?php if (!empty($adjuntosExistentes)): ?><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600"><?= count($adjuntosExistentes) ?></span><?php endif; ?>
+        <span class="hidden text-xs font-normal text-slate-400 sm:inline">(opcional)</span>
+        <i data-lucide="chevron-down" class="chevron ml-auto h-5 w-5 text-slate-400"></i>
+      </summary>
+      <div class="border-t border-slate-100 p-5 sm:p-6">
+      <div class="mb-1 flex justify-end">
         <button type="button" class="btn btn-claro btn-sm" id="btn-adj-mas"><i data-lucide="plus"></i>Agregar archivo</button>
       </div>
       <p class="ayuda mb-4">Opcional. Anticipos, contratos, referencias... Imagenes, PDF, Word o Excel de hasta <?= e(tamano_legible($GLOBALS['CONFIG']['app']['adjunto_max'] ?? 10485760)) ?>.</p>
@@ -264,7 +271,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
           <a href="cotizacion_ver.php?id=<?= (int)$cot['id'] ?>#adjuntos" class="mt-2 inline-block text-xs font-semibold texto-marca hover:underline">Administrar adjuntos</a>
         </div>
       <?php endif; ?>
-    </section>
+      </div>
+    </details>
   </div>
 
   <!-- Columna lateral -->

@@ -53,6 +53,13 @@ function enviar_recordatorio($cotId)
         $listaAdj .= '</ul>';
     }
 
+    $pagadoTotal = (float)db_val('SELECT COALESCE(SUM(monto), 0) FROM cotizacion_pagos WHERE cotizacion_id = ?', [$cotId]);
+    $saldoTotal = round((float)$cot['total'] - $pagadoTotal, 2);
+    $bloquePagos = '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-top:12px"><tr>'
+        . '<td style="font-size:14px;color:#475569">Pagado: <strong style="color:#059669">' . e(money($pagadoTotal, $moneda)) . '</strong></td>'
+        . '<td align="right" style="font-size:14px;color:#475569">' . ($saldoTotal > 0 ? 'Pendiente de cobro: <strong style="color:#e11d48">' . e(money($saldoTotal, $moneda)) . '</strong>' : '<strong style="color:#059669">Pagado por completo</strong>') . '</td>'
+        . '</tr></table>';
+
     $dato = function ($k, $v) {
         return $v === null || $v === '' ? '' : '<tr><td style="padding:4px 0;font-size:13px;color:#64748b;width:110px;vertical-align:top">' . e($k) . '</td><td style="padding:4px 0;font-size:14px;color:#0f172a;font-weight:600">' . e($v) . '</td></tr>';
     };
@@ -81,6 +88,7 @@ function enviar_recordatorio($cotId)
         . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-top:14px"><tr><td align="right">'
         . '<span style="display:inline-block;background:' . e($c2) . ';color:' . e($c2t) . ';padding:10px 16px;border-radius:10px;font-size:18px;font-weight:bold">Total ' . e(money($cot['total'], $moneda)) . '</span>'
         . '</td></tr></table>'
+        . $bloquePagos
         . ($cot['notas'] ? '<p style="margin:18px 0 6px;font-size:12px;font-weight:bold;color:#64748b;text-transform:uppercase;letter-spacing:.05em">Notas</p><p style="margin:0;font-size:14px;color:#334155;white-space:pre-line">' . e($cot['notas']) . '</p>' : '')
         . $listaAdj
         . ($enlace ? '<p style="margin:24px 0 0"><a href="' . e($enlace) . '" style="display:inline-block;background:' . e($c1) . ';color:' . e($c1t) . ';padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:14px">Ver cotización en el sistema</a></p>' : '')

@@ -1,6 +1,7 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/adjuntos.php';
+require __DIR__ . '/includes/pagos.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -69,6 +70,50 @@ if (is_post()) {
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
         }
+    } elseif ($accion === 'registrar_pago') {
+        $desc = input('pago_descripcion');
+        $monto = str_replace([',', ' '], '', input('pago_monto'));
+        $fechaPago = input('pago_fecha', date('Y-m-d'));
+        $metodo = input('pago_metodo');
+        $res = resumen_pagos($cot);
+        $err = null;
+        if ($desc === '') {
+            $err = 'Escribe la descripcion del pago (ej: Anticipo).';
+        } elseif (!is_numeric($monto) || (float)$monto <= 0) {
+            $err = 'El monto del pago debe ser mayor a cero.';
+        } elseif (round((float)$monto, 2) > round($res['saldo'], 2) + 0.001) {
+            $err = 'El pago (' . money($monto, $emp['moneda']) . ') supera el saldo pendiente de ' . money(max(0, $res['saldo']), $emp['moneda']) . '.';
+        } elseif (!valid_date($fechaPago)) {
+            $err = 'La fecha del pago no es valida.';
+        }
+        if ($err) {
+            flash('error', $err);
+            $_SESSION['error_pago'] = true;
+            redirect('cotizacion_ver.php?id=' . $id . '#pagos');
+        }
+        $adjId = null;
+        if (!empty($_FILES['pago_comprobante']['name'][0])) {
+            list($n, $errs) = subir_adjuntos('pago_comprobante', $id, $eid, 'Comprobante: ' . $desc, usuario_actual()['id']);
+            if ($n) {
+                $adjId = (int)db()->lastInsertId();
+            }
+            foreach ($errs as $er) {
+                flash('error', 'Comprobante: ' . $er);
+            }
+        }
+        db_exec('INSERT INTO cotizacion_pagos (cotizacion_id, fecha, descripcion, metodo, monto, adjunto_id, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+            $id, $fechaPago, mb_substr($desc, 0, 150), in_array($metodo, pagos_metodos(), true) ? $metodo : null, round((float)$monto, 2), $adjId, usuario_actual()['id'],
+        ]);
+        $nuevo = resumen_pagos($cot);
+        flash('ok', 'Pago de ' . money($monto, $emp['moneda']) . ' registrado. ' . ($nuevo['saldo'] > 0 ? 'Pendiente: ' . money($nuevo['saldo'], $emp['moneda']) . '.' : 'La cotizacion quedo pagada por completo.'));
+        redirect('cotizacion_ver.php?id=' . $id . '#pagos');
+    } elseif ($accion === 'quitar_pago') {
+        $pg = db_one('SELECT * FROM cotizacion_pagos WHERE id = ? AND cotizacion_id = ?', [input_int('pago_id'), $id]);
+        if ($pg) {
+            db_exec('DELETE FROM cotizacion_pagos WHERE id = ?', [$pg['id']]);
+            flash('ok', 'Pago "' . $pg['descripcion'] . '" eliminado.');
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#pagos');
     } elseif ($accion === 'adjuntar') {
         $tituloAdj = input('titulo');
         if ($tituloAdj === '') {
@@ -105,6 +150,10 @@ $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER
 $autor = $cot['usuario_id'] ? db_val('SELECT nombre FROM usuarios WHERE id = ?', [$cot['usuario_id']]) : null;
 $numero = numero_cotizacion($cot, $emp);
 $logo = logo_url($emp);
+$pagos = db_all('SELECT * FROM cotizacion_pagos WHERE cotizacion_id = ? ORDER BY fecha, id', [$id]);
+$pagosRes = resumen_pagos($cot);
+$errorPago = !empty($_SESSION['error_pago']);
+unset($_SESSION['error_pago']);
 $adjuntos = db_all('SELECT * FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY created_at DESC, id DESC', [$id]);
 $maxAdj = $GLOBALS['CONFIG']['app']['adjunto_max'] ?? 10485760;
 
@@ -187,17 +236,132 @@ require __DIR__ . '/includes/header.php';
       </div>
     </article>
 
-    <!-- Adjuntos -->
-    <section id="adjuntos" class="card mt-5 overflow-hidden">
-      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-7">
-        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>Archivos adjuntos</h2>
-        <span class="text-xs text-slate-500"><?= count($adjuntos) ?> archivo<?= count($adjuntos) === 1 ? '' : 's' ?></span>
+    <!-- Pagos -->
+    <section id="pagos" class="card mt-5 overflow-hidden">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-7">
+        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="wallet" class="h-5 w-5 texto-marca"></i>Control de pagos</h2>
+        <?= badge_pago($pagosRes) ?>
+      </div>
+      <div class="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 text-center">
+        <div class="px-2 py-4">
+          <p class="text-xs font-semibold text-slate-500">Total</p>
+          <p class="mt-0.5 text-sm font-extrabold text-slate-900 sm:text-lg"><?= e(money($pagosRes['total'], $emp['moneda'])) ?></p>
+        </div>
+        <div class="px-2 py-4">
+          <p class="text-xs font-semibold text-slate-500">Pagado</p>
+          <p class="mt-0.5 text-sm font-extrabold text-emerald-600 sm:text-lg"><?= e(money($pagosRes['pagado'], $emp['moneda'])) ?></p>
+        </div>
+        <div class="px-2 py-4">
+          <p class="text-xs font-semibold text-slate-500"><?= $pagosRes['saldo'] < 0 ? 'A favor del cliente' : 'Pendiente' ?></p>
+          <p class="mt-0.5 text-sm font-extrabold sm:text-lg <?= $pagosRes['saldo'] > 0 ? 'text-rose-600' : 'text-slate-900' ?>"><?= e(money(abs($pagosRes['saldo']), $emp['moneda'])) ?></p>
+        </div>
+      </div>
+      <div class="px-5 pt-4 sm:px-7">
+        <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div class="h-full rounded-full bg-emerald-500 transition-all" style="width: <?= (int)$pagosRes['porcentaje'] ?>%"></div>
+        </div>
+        <p class="mt-1.5 text-right text-xs text-slate-500"><?= (int)$pagosRes['porcentaje'] ?>% pagado</p>
       </div>
 
-      <form method="post" enctype="multipart/form-data" class="grid gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end sm:px-7" id="form-adjunto">
+      <?php if ($pagos): ?>
+        <ul class="divide-y divide-slate-100 px-5 sm:px-7">
+          <?php foreach ($pagos as $pg): ?>
+            <li class="flex items-center gap-3 py-3">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><i data-lucide="banknote" class="h-4 w-4"></i></div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900"><?= e($pg['descripcion']) ?></p>
+                <p class="truncate text-xs text-slate-500">
+                  <?= e(fecha($pg['fecha'])) ?><?= $pg['metodo'] ? ' · ' . e($pg['metodo']) : '' ?>
+                  <?php if ($pg['adjunto_id']): ?> · <a href="adjunto.php?id=<?= (int)$pg['adjunto_id'] ?>" target="_blank" class="inline-flex items-center gap-0.5 font-semibold texto-marca hover:underline"><i data-lucide="paperclip" class="h-3 w-3"></i>comprobante</a><?php endif; ?>
+                </p>
+              </div>
+              <p class="shrink-0 text-sm font-bold text-slate-900"><?= e(money($pg['monto'], $emp['moneda'])) ?></p>
+              <form method="post" data-confirmar="Eliminar el pago &quot;<?= e($pg['descripcion']) ?>&quot; por <?= e(money($pg['monto'], $emp['moneda'])) ?>?">
+                <?= csrf_field() ?><input type="hidden" name="accion" value="quitar_pago"><input type="hidden" name="pago_id" value="<?= (int)$pg['id'] ?>">
+                <button class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Eliminar pago"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+              </form>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php else: ?>
+        <p class="px-5 py-4 text-center text-sm text-slate-400 sm:px-7">Aun no hay pagos registrados.</p>
+      <?php endif; ?>
+
+      <details class="desplegable border-t border-slate-100" <?= $errorPago ? 'open' : '' ?>>
+        <summary class="flex cursor-pointer select-none items-center gap-2 px-5 py-3.5 text-sm font-bold texto-marca hover:bg-slate-50 sm:px-7">
+          <i data-lucide="plus-circle" class="h-4 w-4"></i>Registrar pago
+          <i data-lucide="chevron-down" class="chevron ml-auto h-4 w-4 text-slate-400"></i>
+        </summary>
+        <form method="post" enctype="multipart/form-data" class="grid gap-3 bg-slate-50/60 px-5 pb-5 pt-2 sm:grid-cols-2 sm:px-7">
+          <?= csrf_field() ?><input type="hidden" name="accion" value="registrar_pago">
+          <label class="campo"><span>Descripcion *</span>
+            <input class="input bg-white" name="pago_descripcion" list="desc-pagos" maxlength="150" placeholder="Ej: Anticipo" required>
+            <datalist id="desc-pagos"><?php foreach (pagos_descripciones_sugeridas() as $t): ?><option value="<?= e($t) ?>"><?php endforeach; ?></datalist>
+          </label>
+          <label class="campo"><span>Monto (<?= e($emp['moneda']) ?>) *</span>
+            <input class="input bg-white text-right" name="pago_monto" inputmode="decimal" required placeholder="<?= $pagosRes['saldo'] > 0 ? e(number_format($pagosRes['saldo'], 2, '.', '')) : '0.00' ?>">
+            <?php if ($pagosRes['saldo'] > 0): ?><button type="button" class="mt-1 text-xs font-semibold texto-marca hover:underline" onclick="this.previousElementSibling.value='<?= e(number_format($pagosRes['saldo'], 2, '.', '')) ?>'">Usar saldo pendiente</button><?php endif; ?>
+          </label>
+          <label class="campo"><span>Fecha</span>
+            <input class="input bg-white" type="date" name="pago_fecha" value="<?= e(date('Y-m-d')) ?>" required>
+          </label>
+          <label class="campo"><span>Metodo</span>
+            <select class="select bg-white" name="pago_metodo">
+              <option value="">—</option>
+              <?php foreach (pagos_metodos() as $m): ?><option value="<?= e($m) ?>"><?= e($m) ?></option><?php endforeach; ?>
+            </select>
+          </label>
+          <label class="campo sm:col-span-2"><span>Comprobante (opcional)</span>
+            <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="pago_comprobante[]" accept="image/*,.pdf,.heic">
+            <p class="ayuda">Se guarda tambien en los archivos adjuntos.</p>
+          </label>
+          <div class="sm:col-span-2 flex justify-end">
+            <button class="btn btn-exito"><i data-lucide="check"></i>Guardar pago</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <!-- Adjuntos (desplegable) -->
+    <details id="adjuntos" class="desplegable card mt-5 overflow-hidden">
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-7">
+        <i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>
+        <span class="text-base font-bold text-slate-900">Archivos adjuntos</span>
+        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600"><?= count($adjuntos) ?></span>
+        <i data-lucide="chevron-down" class="chevron ml-auto h-5 w-5 text-slate-400"></i>
+      </summary>
+
+      <?php if ($adjuntos): ?>
+        <ul class="divide-y divide-slate-100 border-t border-slate-100 px-5 sm:px-7">
+          <?php foreach ($adjuntos as $a): $img = adjunto_es_imagen($a['mime']); ?>
+            <li class="flex items-center gap-3 py-2.5">
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
+                <?php if ($img): ?>
+                  <img src="adjunto.php?id=<?= (int)$a['id'] ?>" alt="" loading="lazy" class="h-full w-full object-cover">
+                <?php else: ?>
+                  <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-5 w-5"></i>
+                <?php endif; ?>
+              </a>
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-slate-900"><?= e($a['titulo']) ?></p>
+                <p class="truncate text-xs text-slate-500"><?= e($a['nombre_original']) ?> · <?= e(tamano_legible($a['tamano'])) ?></p>
+              </a>
+              <a href="adjunto.php?id=<?= (int)$a['id'] ?>&descargar=1" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Descargar"><i data-lucide="download" class="h-4 w-4"></i></a>
+              <form method="post" data-confirmar="Eliminar el adjunto &quot;<?= e($a['titulo']) ?>&quot;?">
+                <?= csrf_field() ?><input type="hidden" name="accion" value="quitar_adjunto"><input type="hidden" name="adjunto_id" value="<?= (int)$a['id'] ?>">
+                <button class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Eliminar"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+              </form>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      <?php else: ?>
+        <p class="border-t border-slate-100 px-5 py-4 text-center text-sm text-slate-400 sm:px-7">Aun no hay archivos.</p>
+      <?php endif; ?>
+
+      <form method="post" enctype="multipart/form-data" class="grid gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end sm:px-7" id="form-adjunto">
         <?= csrf_field() ?><input type="hidden" name="accion" value="adjuntar">
         <label class="campo"><span>Titulo *</span>
-          <input class="input" name="titulo" list="titulos-adjunto" maxlength="150" placeholder="Ej: Anticipo" required>
+          <input class="input bg-white" name="titulo" list="titulos-adjunto" maxlength="150" placeholder="Ej: Contrato" required>
           <datalist id="titulos-adjunto">
             <?php foreach (adjuntos_titulos_sugeridos() as $t): ?><option value="<?= e($t) ?>"><?php endforeach; ?>
           </datalist>
@@ -207,39 +371,9 @@ require __DIR__ . '/includes/header.php';
                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.heic" id="input-adjunto">
         </label>
         <button type="submit" class="btn btn-primario"><i data-lucide="upload"></i>Subir</button>
-        <p class="ayuda sm:col-span-3 -mt-1">Imagenes, PDF, Word o Excel. Maximo <?= e(tamano_legible($maxAdj)) ?> por archivo. Puedes seleccionar varios a la vez o tomar una foto desde el celular.</p>
+        <p class="ayuda -mt-1 sm:col-span-3">Imagenes, PDF, Word o Excel. Maximo <?= e(tamano_legible($maxAdj)) ?> por archivo.</p>
       </form>
-
-      <?php if (!$adjuntos): ?>
-        <p class="px-5 py-8 text-center text-sm text-slate-400 sm:px-7">Aun no hay archivos. Adjunta comprobantes de anticipo, contratos o referencias.</p>
-      <?php else: ?>
-        <ul class="grid gap-3 p-5 sm:grid-cols-2 sm:px-7">
-          <?php foreach ($adjuntos as $a): $img = adjunto_es_imagen($a['mime']); ?>
-            <li class="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-              <a href="adjunto.php?id=<?= (int)$a['id'] ?>" target="_blank" class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-400">
-                <?php if ($img): ?>
-                  <img src="adjunto.php?id=<?= (int)$a['id'] ?>" alt="" loading="lazy" class="h-full w-full object-cover">
-                <?php else: ?>
-                  <i data-lucide="<?= adjunto_icono($a['mime']) ?>" class="h-7 w-7"></i>
-                <?php endif; ?>
-              </a>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-bold text-slate-900"><?= e($a['titulo']) ?></p>
-                <p class="truncate text-xs text-slate-500" title="<?= e($a['nombre_original']) ?>"><?= e($a['nombre_original']) ?></p>
-                <p class="text-xs text-slate-400"><?= e(tamano_legible($a['tamano'])) ?> · <?= e(fecha($a['created_at'], true)) ?></p>
-              </div>
-              <div class="flex shrink-0 flex-col gap-1">
-                <a href="adjunto.php?id=<?= (int)$a['id'] ?>&descargar=1" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" title="Descargar"><i data-lucide="download" class="h-4 w-4"></i></a>
-                <form method="post" data-confirmar="Eliminar el adjunto &quot;<?= e($a['titulo']) ?>&quot;?">
-                  <?= csrf_field() ?><input type="hidden" name="accion" value="quitar_adjunto"><input type="hidden" name="adjunto_id" value="<?= (int)$a['id'] ?>">
-                  <button class="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Eliminar"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
-                </form>
-              </div>
-            </li>
-          <?php endforeach; ?>
-        </ul>
-      <?php endif; ?>
-    </section>
+    </details>
   </div>
 
   <!-- Acciones -->
@@ -250,11 +384,32 @@ require __DIR__ . '/includes/header.php';
       <?php if ($cot['estado'] === 'pendiente'): ?>
         <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="pencil"></i>Editar</a>
       <?php endif; ?>
-      <a href="#adjuntos" class="btn btn-claro w-full"><i data-lucide="paperclip"></i>Adjuntos (<?= count($adjuntos) ?>)</a>
+      <div class="grid grid-cols-2 gap-2">
+        <a href="#pagos" class="btn btn-claro"><i data-lucide="wallet"></i>Registrar pago</a>
+        <a href="#adjuntos" class="btn btn-claro" data-abrir="adjuntos"><i data-lucide="paperclip"></i>Adjuntos (<?= count($adjuntos) ?>)</a>
+      </div>
       <form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="duplicar">
         <button class="btn btn-claro w-full"><i data-lucide="copy"></i>Duplicar</button>
       </form>
     </div>
+
+    <a href="#pagos" class="card block p-5 transition hover:shadow-md">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="text-sm font-bold text-slate-900">Pagos</h3>
+        <?= badge_pago($pagosRes) ?>
+      </div>
+      <div class="mt-3 flex items-end justify-between gap-3">
+        <div>
+          <p class="text-xs text-slate-500">Pagado</p>
+          <p class="font-bold text-emerald-600"><?= e(money($pagosRes['pagado'], $emp['moneda'])) ?></p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-slate-500">Pendiente</p>
+          <p class="text-lg font-extrabold <?= $pagosRes['saldo'] > 0 ? 'text-rose-600' : 'text-slate-900' ?>"><?= e(money(max(0, $pagosRes['saldo']), $emp['moneda'])) ?></p>
+        </div>
+      </div>
+      <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: <?= (int)$pagosRes['porcentaje'] ?>%"></div></div>
+    </a>
 
     <div class="card p-5">
       <h3 class="mb-3 text-sm font-bold text-slate-900">Estado de la cotizacion</h3>

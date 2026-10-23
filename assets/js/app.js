@@ -25,6 +25,25 @@
     }
   });
 
+  // Desplegables (<details>): abrir el que coincide con el #ancla de la URL
+  function abrirPorHash() {
+    var id = (window.location.hash || '').slice(1);
+    if (!id) return;
+    var el = document.getElementById(id);
+    if (el && el.tagName === 'DETAILS') {
+      el.open = true;
+      setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+    }
+  }
+  abrirPorHash();
+  window.addEventListener('hashchange', abrirPorHash);
+  document.querySelectorAll('[data-abrir]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var el = document.getElementById(a.getAttribute('data-abrir'));
+      if (el && el.tagName === 'DETAILS') el.open = true;
+    });
+  });
+
   // Ocultar mensajes flash despues de un tiempo
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (el) {

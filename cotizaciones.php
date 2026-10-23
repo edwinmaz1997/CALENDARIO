@@ -41,7 +41,7 @@ if ($q !== '') {
 }
 
 $pag = paginar((int)db_val("SELECT COUNT(*) FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id WHERE $where", $params));
-$cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
+$cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos, (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE $where ORDER BY c.id DESC LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
 
 $conteos = [];
@@ -105,7 +105,12 @@ require __DIR__ . '/includes/header.php';
           <span class="whitespace-nowrap"><?= e(fecha($c['fecha_evento'])) ?></span>
           <?php if ($c['hora_evento']): ?><span class="text-xs text-slate-500"><?= e(hora($c['hora_evento'])) ?></span><?php endif; ?>
         </td>
-        <td data-label="Total" class="whitespace-nowrap font-bold md:text-right"><?= e(money($c['total'], $emp['moneda'])) ?></td>
+        <td data-label="Total" class="whitespace-nowrap md:text-right">
+          <span class="font-bold"><?= e(money($c['total'], $emp['moneda'])) ?></span>
+          <?php $saldoC = round($c['total'] - $c['pagado'], 2); if ((float)$c['pagado'] > 0 || $c['estado'] === 'aceptada'): ?>
+            <span class="block text-xs font-semibold <?= $saldoC > 0 ? 'text-rose-600' : 'text-emerald-600' ?>"><?= $saldoC > 0 ? 'Pendiente ' . e(money($saldoC, $emp['moneda'])) : 'Pagada' ?></span>
+          <?php endif; ?>
+        </td>
         <td data-label="Estado"><?= badge_estado($c['estado']) ?></td>
         <td class="td-acciones">
           <div class="flex justify-end gap-1.5">

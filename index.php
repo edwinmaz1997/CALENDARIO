@@ -17,7 +17,13 @@ $stats = db_one("SELECT
         SUM(estado = 'aceptada' AND fecha_evento >= ?) AS proximos
     FROM cotizaciones WHERE empresa_id = ?", [$iniMes, $finMes, $iniMes, $finMes, $hoy, $eid]);
 
-$proximos = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente
+$cobro = db_one("SELECT COALESCE(SUM(c.total - COALESCE(p.pagado, 0)), 0) AS por_cobrar, COUNT(*) AS n
+    FROM cotizaciones c
+    LEFT JOIN (SELECT cotizacion_id, SUM(monto) AS pagado FROM cotizacion_pagos GROUP BY cotizacion_id) p ON p.cotizacion_id = c.id
+    WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.total - COALESCE(p.pagado, 0) > 0", [$eid]);
+
+$proximos = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
+        (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado
     FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.fecha_evento >= ?
     ORDER BY c.fecha_evento, c.hora_evento LIMIT 6", [$eid, $hoy]);
@@ -43,7 +49,7 @@ require __DIR__ . '/includes/header.php';
       ['Pendientes', (int)$stats['pendientes'], money($stats['monto_pendiente'], $emp['moneda']) . ' por confirmar', 'clock', 'bg-amber-100 text-amber-700', 'cotizaciones.php?estado=pendiente'],
       ['Eventos este mes', (int)$stats['eventos_mes'], 'Cotizaciones aceptadas', 'calendar-check', 'bg-emerald-100 text-emerald-700', 'cotizaciones.php?estado=aceptada&desde=' . $iniMes . '&hasta=' . $finMes],
       ['Vendido este mes', money($stats['monto_mes'], $emp['moneda']), 'Segun fecha de evento', 'trending-up', 'bg-sky-100 text-sky-700', null],
-      ['Proximos eventos', (int)$stats['proximos'], 'Desde hoy', 'party-popper', 'bg-violet-100 text-violet-700', 'cotizaciones.php?estado=aceptada&desde=' . $hoy],
+      ['Por cobrar', money($cobro['por_cobrar'], $emp['moneda']), (int)$cobro['n'] . ' aceptadas con saldo', 'wallet', 'bg-rose-100 text-rose-700', 'cotizaciones.php?estado=aceptada'],
   ];
   foreach ($tarjetas as $t): $tag = $t[5] ? 'a' : 'div'; ?>
     <<?= $tag ?> <?= $t[5] ? 'href="' . e($t[5]) . '"' : '' ?> class="card flex flex-col gap-3 p-4 transition sm:p-5 <?= $t[5] ? 'hover:shadow-md' : '' ?>">
@@ -89,7 +95,11 @@ require __DIR__ . '/includes/header.php';
                   <p class="truncate text-sm font-semibold text-slate-900"><?= e($p['cliente']) ?></p>
                   <p class="truncate text-xs text-slate-500"><?= e(implode(' · ', array_filter([hora($p['hora_evento']), $p['lugar_evento']])) ?: numero_cotizacion($p, $emp)) ?></p>
                 </div>
-                <p class="shrink-0 text-sm font-bold text-slate-700"><?= e(money($p['total'], $emp['moneda'])) ?></p>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-bold text-slate-700"><?= e(money($p['total'], $emp['moneda'])) ?></p>
+                  <?php $sp = round($p['total'] - $p['pagado'], 2); ?>
+                  <p class="text-xs font-semibold <?= $sp > 0 ? 'text-rose-600' : 'text-emerald-600' ?>"><?= $sp > 0 ? 'Debe ' . e(money($sp, $emp['moneda'])) : 'Pagada' ?></p>
+                </div>
               </a>
             </li>
           <?php endforeach; ?>

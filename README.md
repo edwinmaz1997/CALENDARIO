@@ -13,6 +13,7 @@ Sistema de cotizaciones multiempresa con calendario de eventos. PHP 7.4+ y MySQL
   - Tambien pueden pasar a **rechazadas**.
 - **PDF** de la cotizacion con el logo y los colores de la empresa.
 - **Archivos adjuntos** en cada cotizacion con titulo (Anticipo, Contrato, etc.): imagenes, PDF, Word o Excel. Se guardan protegidos y solo se ven con sesion.
+- **Control de pagos** por cotizacion: anticipos, abonos y pago final con descripcion, monto, metodo y comprobante; muestra lo pagado y el saldo pendiente (tambien en el PDF, la lista y el inicio).
 - **Recordatorio por correo** al correo de la empresa un dia antes de cada evento aceptado, con el PDF adjunto.
 - **Dashboard** con indicadores, calendario de eventos, proximos eventos y pendientes.
 

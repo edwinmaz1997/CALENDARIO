@@ -201,7 +201,7 @@
     var sinTitulo = Array.prototype.filter.call(document.querySelectorAll('.adj-fila'), function (f) {
       return f.querySelector('input[type=file]').files.length && !f.querySelector('[name="adj_titulo[]"]').value.trim();
     });
-    if (sinTitulo.length) { ev.preventDefault(); alert('Escribe el titulo de cada archivo adjunto (ej: Anticipo).'); sinTitulo[0].querySelector('[name="adj_titulo[]"]').focus(); return; }
+    if (sinTitulo.length) { ev.preventDefault(); alert('Escribe el titulo de cada archivo adjunto (ej: Anticipo).'); document.getElementById('adjuntos-form').open = true; sinTitulo[0].querySelector('[name="adj_titulo[]"]').focus(); return; }
     enviando = true;
     Array.prototype.forEach.call(form.querySelectorAll('[type=submit]'), function (b) { b.disabled = true; });
   });

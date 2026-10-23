@@ -104,3 +104,11 @@ body.menu-abierto { overflow: hidden; }
 .texto-marca { color: var(--c1); }
 .bg-marca-suave { background: color-mix(in srgb, var(--c1) 10%, white); }
 [x-cloak] { display: none !important; }
+
+/* Desplegables */
+details.desplegable > summary { list-style: none; }
+details.desplegable > summary::-webkit-details-marker { display: none; }
+details.desplegable > summary .chevron { transition: transform .2s; }
+details.desplegable[open] > summary .chevron { transform: rotate(180deg); }
+details.desplegable { scroll-margin-top: 5rem; }
+#pagos { scroll-margin-top: 5rem; }
