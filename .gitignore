@@ -1,0 +1,8 @@
+config/config.php
+uploads/logos/*
+!uploads/logos/.gitkeep
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+package-lock.json

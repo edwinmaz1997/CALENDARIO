@@ -1,0 +1,12 @@
+{
+  "name": "calendario-cotizador",
+  "private": true,
+  "description": "Herramientas de desarrollo: compilacion de Tailwind CSS",
+  "scripts": {
+    "build:css": "tailwindcss -i ./assets/css/tailwind.src.css -o ./assets/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/tailwind.src.css -o ./assets/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
