@@ -39,4 +39,22 @@ return [
             'pass'   => 'CAMBIAR',
         ],
     ],
+    'whatsapp' => [
+        // Poner en true cuando ya esten el token, el ID del numero y las plantillas aprobadas
+        'activo'          => false,
+        // Meta for Developers > tu app > WhatsApp > Configuracion de la API
+        'phone_number_id' => '',
+        // Token permanente de un usuario del sistema (Business Manager > Usuarios del sistema)
+        'token'           => '',
+        'api_version'     => 'v21.0',
+        // Codigo de idioma con el que se crearon las plantillas (es, es_MX, es_ES...)
+        'idioma'          => 'es',
+        // Codigo de pais para telefonos de 8 digitos
+        'codigo_pais'     => '502',
+        // Nombres de las plantillas aprobadas en Meta (categoria Utilidad)
+        'plantilla_cliente'   => 'recordatorio_evento_cliente',
+        'plantilla_proveedor' => 'recordatorio_evento_proveedor',
+        // Dias antes del evento en que se envia cada recordatorio
+        'dias' => [5, 1],
+    ],
 ];

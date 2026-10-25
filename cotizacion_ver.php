@@ -4,6 +4,7 @@ require __DIR__ . '/includes/adjuntos.php';
 require __DIR__ . '/includes/pagos.php';
 require __DIR__ . '/includes/imagen_cotizacion.php';
 require __DIR__ . '/includes/proveedores.php';
+require __DIR__ . '/includes/whatsapp.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -80,6 +81,32 @@ if (is_post()) {
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
         }
+    } elseif ($accion === 'wa_enviar' && $cot['estado'] === 'aceptada') {
+        if (!wa_configurado()) {
+            flash('error', 'WhatsApp aun no esta configurado.');
+        } else {
+            $quien = input('destino'); // todos | cliente | proveedor:ID
+            $ok = 0;
+            $fallos = [];
+            foreach (wa_destinatarios($cot) as $d) {
+                if ($quien !== 'todos' && $quien !== $d['tipo'] && $quien !== $d['tipo'] . ':' . $d['id']) {
+                    continue;
+                }
+                $r = wa_enviar_recordatorio($cot, $d, 'manual', true);
+                if ($r['estado'] === 'enviado') {
+                    $ok++;
+                } else {
+                    $fallos[] = $r['detalle'];
+                }
+            }
+            if ($ok) {
+                flash('ok', 'Recordatorio de WhatsApp enviado a ' . $ok . ' destinatario(s).');
+            }
+            foreach ($fallos as $f) {
+                flash('error', 'WhatsApp: ' . $f);
+            }
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#whatsapp');
     } elseif ($accion === 'enviada') {
         db_exec('UPDATE cotizaciones SET enviada_at = NOW() WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Cotizacion marcada como enviada al cliente.');
@@ -186,6 +213,8 @@ $logo = logo_url($emp);
 $pagos = db_all('SELECT p.*, a.mime AS adj_mime FROM cotizacion_pagos p LEFT JOIN cotizacion_adjuntos a ON a.id = p.adjunto_id WHERE p.cotizacion_id = ? ORDER BY p.fecha, p.id', [$id]);
 $pagosRes = resumen_pagos($cot);
 $provRes = resumen_proveedores_cotizacion($id);
+$waEnvios = db_all('SELECT * FROM whatsapp_envios WHERE cotizacion_id = ? ORDER BY COALESCE(updated_at, created_at) DESC', [$id]);
+$waDest = $cot['estado'] === 'aceptada' ? wa_destinatarios($cot) : [];
 $telWa = preg_replace('/\D/', '', (string)($cliente['telefono'] ?? ''));
 if (strlen($telWa) === 8) {
     $telWa = '502' . $telWa; // Guatemala
@@ -499,6 +528,57 @@ require __DIR__ . '/includes/header.php';
         <a href="https://wa.me/<?= e($telWa) ?>?text=<?= rawurlencode('Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.') ?>" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline"><i data-lucide="message-circle" class="h-4 w-4"></i>Abrir chat de WhatsApp con <?= e($cliente['telefono']) ?></a>
       <?php endif; ?>
     </div>
+
+    <?php if ($cot['estado'] === 'aceptada'): ?>
+    <!-- Recordatorios por WhatsApp -->
+    <div class="card p-5" id="whatsapp" style="scroll-margin-top:5rem">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="flex items-center gap-2 text-sm font-bold text-slate-900"><i data-lucide="message-circle" class="h-4 w-4 text-emerald-600"></i>WhatsApp</h3>
+        <span class="text-[11px] text-slate-400"><?= e(implode(' y ', array_map('wa_etiqueta_tipo', array_map(function ($d) { return $d . 'dias'; }, wa_config()['dias'])))) ?></span>
+      </div>
+      <?php if (!wa_configurado()): ?>
+        <p class="mt-2 text-xs text-slate-500">Los recordatorios automaticos al cliente y a proveedores se activaran cuando se configure la cuenta de WhatsApp.</p>
+      <?php endif; ?>
+      <ul class="mt-3 space-y-1.5 text-sm">
+        <?php foreach ($waDest as $d): ?>
+          <li class="flex items-center justify-between gap-2">
+            <span class="min-w-0 truncate text-slate-700"><?= e($d['nombre']) ?> <span class="text-xs text-slate-400"><?= $d['tipo'] === 'cliente' ? 'cliente' : 'proveedor' ?></span></span>
+            <?php if ($d['telefono']): ?>
+              <span class="shrink-0 text-xs text-slate-500">+<?= e($d['telefono']) ?></span>
+            <?php else: ?>
+              <span class="shrink-0 text-xs font-semibold text-amber-700">Sin telefono</span>
+            <?php endif; ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+      <?php if ($waEnvios): ?>
+        <div class="mt-3 border-t border-slate-100 pt-3">
+          <p class="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">Enviados</p>
+          <ul class="space-y-1.5 text-xs">
+            <?php foreach ($waEnvios as $w): ?>
+              <li class="flex items-start justify-between gap-2" title="<?= e($w['error'] ?? '') ?>">
+                <span class="min-w-0 text-slate-600"><?= e(wa_etiqueta_tipo($w['tipo'])) ?> · <?= $w['destinatario_tipo'] === 'cliente' ? 'Cliente' : 'Proveedor' ?> · <?= e(fecha($w['updated_at'] ?: $w['created_at'], true)) ?></span>
+                <?= $w['estado'] === 'enviado' ? '<span class="shrink-0 font-semibold text-emerald-600">Enviado</span>' : '<span class="shrink-0 font-semibold text-rose-600">Error</span>' ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      <?php endif; ?>
+      <?php if (wa_configurado() && $waDest): ?>
+        <form method="post" class="mt-3 flex gap-2" data-confirmar="Enviar el recordatorio por WhatsApp ahora?">
+          <?= csrf_field() ?><input type="hidden" name="accion" value="wa_enviar">
+          <select class="select flex-1 py-1.5 text-sm" name="destino">
+            <option value="todos">A todos</option>
+            <option value="cliente">Solo al cliente</option>
+            <?php foreach ($waDest as $d): if ($d['tipo'] !== 'proveedor') continue; ?>
+              <option value="proveedor:<?= (int)$d['id'] ?>">Solo a <?= e($d['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <button class="btn btn-exito btn-sm"><i data-lucide="send"></i>Enviar</button>
+        </form>
+      <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if ($provRes['filas']): ?>
     <!-- Proveedores del evento (interno) -->

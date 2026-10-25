@@ -32,6 +32,7 @@ $_menuAdmin = [];
 if ($_u && $_u['rol'] === 'admin') {
     $_menuAdmin[] = ['empresas', 'empresas.php', 'briefcase', 'Empresas'];
     $_menuAdmin[] = ['usuarios', 'usuarios.php', 'user-cog', 'Usuarios'];
+    $_menuAdmin[] = ['whatsapp', 'whatsapp.php', 'message-circle', 'WhatsApp'];
     $_menuAdmin[] = ['seleccionar', 'seleccionar_empresa.php', 'repeat', 'Cambiar empresa'];
 }
 ?>

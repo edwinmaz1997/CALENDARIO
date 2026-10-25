@@ -20,6 +20,7 @@ Sistema de cotizaciones multiempresa con calendario de eventos. PHP 7.4+ y MySQL
 - **Cotizaciones enviadas**: boton para marcar como enviada al cliente; filtros "Por enviar" y "Enviadas".
 - **Reportes** mensual, anual o por rango: eventos, vendido, cobrado, por cobrar, costo de proveedores, ganancia, flujo de dinero, adeudos por proveedor, conversion de cotizaciones; exportable a Excel (CSV) e imprimible.
 - **Campanita de alertas**: eventos aceptados a 5 dias o menos (o ya pasados) que aun tienen saldo con el cliente o con proveedores, con **reporte de liquidacion** por evento (cobro al cliente, pago a cada proveedor, ganancia y dinero en mano), imprimible.
+- **Recordatorios por WhatsApp** (API oficial de Meta) al cliente y a cada proveedor 5 dias y 1 dia antes del evento, sin duplicados, con reintentos y envio manual desde la cotizacion.
 - **Dashboard** con indicadores (pendientes, por enviar, por cobrar, deuda a proveedores), calendario de eventos, proximos eventos y pendientes.
 
 ## Instalacion en cPanel
@@ -47,6 +48,13 @@ Si el hosting no permite ejecutar PHP desde el cron, se puede usar la URL con la
 ```
 wget -q -O /dev/null "https://tudominio.com/cron_recordatorios.php?token=TU_CRON_TOKEN"
 ```
+
+### WhatsApp
+
+1. En Meta Business crea la app con WhatsApp, registra el numero y genera un token permanente (usuario del sistema).
+2. Crea y espera la aprobacion de las plantillas `recordatorio_evento_cliente` y `recordatorio_evento_proveedor` (categoria Utilidad, idioma Espanol). El texto exacto esta en **Administracion > WhatsApp**.
+3. En `config/config.php`, seccion `whatsapp`: `phone_number_id`, `token` y `activo => true`.
+4. El mismo cron de recordatorios hace los envios. Desde **Administracion > WhatsApp** se puede enviar una prueba.
 
 ### Actualizar una instalacion existente
 
