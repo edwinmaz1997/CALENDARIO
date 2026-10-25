@@ -19,6 +19,7 @@ Sistema de cotizaciones multiempresa con calendario de eventos. PHP 7.4+ y MySQL
 - **Proveedores** con % de comision: el precio de venta ya incluye la comision (ej. 5000 con 10% => se paga 4500 al proveedor). Las cotizaciones aceptadas generan el adeudo; se registran abonos por proveedor y opcionalmente por evento.
 - **Cotizaciones enviadas**: boton para marcar como enviada al cliente; filtros "Por enviar" y "Enviadas".
 - **Reportes** mensual, anual o por rango: eventos, vendido, cobrado, por cobrar, costo de proveedores, ganancia, flujo de dinero, adeudos por proveedor, conversion de cotizaciones; exportable a Excel (CSV) e imprimible.
+- **Campanita de alertas**: eventos aceptados a 5 dias o menos (o ya pasados) que aun tienen saldo con el cliente o con proveedores, con **reporte de liquidacion** por evento (cobro al cliente, pago a cada proveedor, ganancia y dinero en mano), imprimible.
 - **Dashboard** con indicadores (pendientes, por enviar, por cobrar, deuda a proveedores), calendario de eventos, proximos eventos y pendientes.
 
 ## Instalacion en cPanel

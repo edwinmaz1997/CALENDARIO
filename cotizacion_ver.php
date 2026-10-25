@@ -445,6 +445,9 @@ require __DIR__ . '/includes/header.php';
       <?php if ($cot['estado'] === 'pendiente'): ?>
         <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="pencil"></i>Editar</a>
       <?php endif; ?>
+      <?php if ($cot['estado'] === 'aceptada'): ?>
+        <a href="liquidacion.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="clipboard-check"></i>Reporte de liquidacion</a>
+      <?php endif; ?>
       <div class="grid grid-cols-2 gap-2">
         <a href="#pagos" class="btn btn-claro"><i data-lucide="wallet"></i>Registrar pago</a>
         <a href="#adjuntos" class="btn btn-claro" data-abrir="adjuntos"><i data-lucide="paperclip"></i>Adjuntos (<?= count($adjuntos) ?>)</a>

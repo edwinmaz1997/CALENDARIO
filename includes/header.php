@@ -23,6 +23,11 @@ if ($_emp) {
     $_menu[] = ['reportes', 'reportes.php', 'bar-chart-3', 'Reportes'];
     $_menu[] = ['mi_empresa', 'mi_empresa.php', 'building-2', 'Mi empresa'];
 }
+$_alertas = [];
+if ($_emp) {
+    require_once __DIR__ . '/alertas.php';
+    $_alertas = eventos_por_liquidar((int)$_emp['id']);
+}
 $_menuAdmin = [];
 if ($_u && $_u['rol'] === 'admin') {
     $_menuAdmin[] = ['empresas', 'empresas.php', 'briefcase', 'Empresas'];
@@ -104,9 +109,49 @@ if ($_u && $_u['rol'] === 'admin') {
     <button type="button" class="-ml-1 rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden" data-abrir-menu aria-label="Abrir menu">
       <i data-lucide="menu" class="h-6 w-6"></i>
     </button>
-    <h1 class="truncate text-lg font-bold text-slate-900 sm:text-xl"><?= e($titulo) ?></h1>
+    <h1 class="min-w-0 flex-1 truncate text-lg font-bold text-slate-900 sm:text-xl"><?= e($titulo) ?></h1>
     <?php if (!empty($accionesHeader)): ?>
-      <div class="ml-auto flex items-center gap-2"><?= $accionesHeader ?></div>
+      <div class="flex shrink-0 items-center gap-2"><?= $accionesHeader ?></div>
+    <?php endif; ?>
+    <?php if ($_emp): ?>
+    <div class="relative shrink-0" id="campana">
+      <button type="button" class="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" data-campana aria-label="Alertas de eventos" aria-expanded="false">
+        <i data-lucide="<?= $_alertas ? 'bell-ring' : 'bell' ?>" class="h-6 w-6 <?= $_alertas ? 'campana-anim text-rose-600' : '' ?>"></i>
+        <?php if ($_alertas): ?>
+          <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white ring-2 ring-white"><?= count($_alertas) > 9 ? '9+' : count($_alertas) ?></span>
+        <?php endif; ?>
+      </button>
+      <div class="campana-panel absolute right-0 top-full z-40 mt-2 hidden w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" data-campana-panel>
+        <div class="border-b border-slate-100 px-4 py-3">
+          <p class="text-sm font-bold text-slate-900">Eventos por liquidar</p>
+          <p class="text-xs text-slate-500">Eventos en los proximos <?= DIAS_ALERTA ?> dias (o ya pasados) con saldo pendiente.</p>
+        </div>
+        <?php if (!$_alertas): ?>
+          <div class="px-4 py-8 text-center">
+            <i data-lucide="check-circle-2" class="mx-auto h-8 w-8 text-emerald-500"></i>
+            <p class="mt-2 text-sm text-slate-500">Todo al dia. No hay eventos proximos con saldo.</p>
+          </div>
+        <?php else: ?>
+          <ul class="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto">
+            <?php foreach ($_alertas as $al): ?>
+              <li>
+                <a href="liquidacion.php?id=<?= (int)$al['id'] ?>" class="block px-4 py-3 hover:bg-slate-50">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['cliente']) ?></p>
+                    <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold <?= $al['dias'] < 0 ? 'bg-rose-100 text-rose-700' : ($al['dias'] <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700') ?>"><?= e(texto_dias($al['dias'])) ?></span>
+                  </div>
+                  <p class="text-xs text-slate-500"><?= e(numero_cotizacion($al, $_emp)) ?> · <?= e(fecha($al['fecha_evento'])) ?></p>
+                  <div class="mt-1 flex flex-wrap gap-x-3 text-xs">
+                    <?php if ($al['saldo_cliente'] > 0.004): ?><span class="text-rose-600">Cliente debe <strong><?= e(money($al['saldo_cliente'], $_emp['moneda'])) ?></strong></span><?php endif; ?>
+                    <?php if ($al['saldo_prov'] > 0.004): ?><span class="text-slate-700">Pagar a proveedores <strong><?= e(money($al['saldo_prov'], $_emp['moneda'])) ?></strong></span><?php endif; ?>
+                  </div>
+                </a>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
+      </div>
+    </div>
     <?php endif; ?>
   </header>
 

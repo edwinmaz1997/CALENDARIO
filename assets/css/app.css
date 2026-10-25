@@ -151,3 +151,9 @@ html.visor-activo, html.visor-activo body { overflow: hidden; }
   header { position: static !important; border: 0 !important; }
   a { color: inherit !important; text-decoration: none !important; }
 }
+
+/* Campanita */
+@keyframes campana { 0%,100% { transform: rotate(0); } 10%,30% { transform: rotate(14deg); } 20%,40% { transform: rotate(-14deg); } 50% { transform: rotate(0); } }
+.campana-anim { transform-origin: 50% 10%; animation: campana 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .campana-anim { animation: none; } }
+@media print { #campana { display: none !important; } }

@@ -55,6 +55,20 @@
     ultimoToque = ahora;
   }, { passive: false });
 
+  // Campanita de alertas
+  var camp = document.getElementById('campana');
+  if (camp) {
+    var btnC = camp.querySelector('[data-campana]'), panel = camp.querySelector('[data-campana-panel]');
+    btnC.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var abrirC = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !abrirC);
+      btnC.setAttribute('aria-expanded', abrirC ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (ev) { if (!camp.contains(ev.target)) panel.classList.add('hidden'); });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') panel.classList.add('hidden'); });
+  }
+
   // Ocultar mensajes flash despues de un tiempo
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (el) {

@@ -77,6 +77,38 @@ require __DIR__ . '/includes/header.php';
   <?php endforeach; ?>
 </div>
 
+<?php if (!empty($_alertas)): ?>
+<section class="card mb-5 overflow-hidden border-rose-200">
+  <div class="flex items-center gap-3 border-b border-rose-100 bg-rose-50 px-5 py-3">
+    <i data-lucide="bell-ring" class="h-5 w-5 shrink-0 text-rose-600"></i>
+    <div class="min-w-0">
+      <p class="text-sm font-bold text-rose-800"><?= count($_alertas) ?> evento(s) proximos aun sin liquidar</p>
+      <p class="text-xs text-rose-700">Deben quedar cancelados antes de la fecha del evento.</p>
+    </div>
+  </div>
+  <ul class="divide-y divide-slate-100">
+    <?php foreach ($_alertas as $al): ?>
+      <li>
+        <a href="liquidacion.php?id=<?= (int)$al['id'] ?>" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['cliente']) ?></p>
+              <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold <?= $al['dias'] < 0 ? 'bg-rose-100 text-rose-700' : ($al['dias'] <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700') ?>"><?= e(texto_dias($al['dias'])) ?></span>
+            </div>
+            <p class="text-xs text-slate-500"><?= e(numero_cotizacion($al, $emp)) ?> · <?= e(fecha($al['fecha_evento'])) ?></p>
+            <div class="mt-1 flex flex-wrap gap-x-4 text-xs">
+              <?php if ($al['saldo_cliente'] > 0.004): ?><span class="text-rose-600">Cliente debe <strong><?= e(money($al['saldo_cliente'], $emp['moneda'])) ?></strong></span><?php endif; ?>
+              <?php if ($al['saldo_prov'] > 0.004): ?><span class="text-slate-700">Pagar a proveedores <strong><?= e(money($al['saldo_prov'], $emp['moneda'])) ?></strong></span><?php endif; ?>
+            </div>
+          </div>
+          <i data-lucide="chevron-right" class="h-4 w-4 shrink-0 text-slate-300"></i>
+        </a>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+</section>
+<?php endif; ?>
+
 <div class="grid gap-5 xl:grid-cols-3">
   <!-- Calendario -->
   <section class="card p-3 sm:p-5 xl:col-span-2">
