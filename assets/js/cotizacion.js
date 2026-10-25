@@ -142,8 +142,8 @@
     $('[data-meta]', f).textContent = l.producto_id ? ('Producto del catalogo' + (l.unidad ? ' · ' + l.unidad : '')) : 'Linea libre';
     var provSel = l.proveedor_id && provPorId[l.proveedor_id] ? l.proveedor_id : null;
     f.querySelector('[name="proveedor_id[]"]').value = provSel || '';
-    var sp = $('[data-prov]', f);
-    if (provs.length) { sp.innerHTML = opcionesProv(provSel); sp.classList.remove('hidden'); }
+    var sp = $('[data-prov]', f), spw = $('[data-prov-wrap]', f);
+    if (provs.length) { sp.innerHTML = opcionesProv(provSel); spw.classList.remove('hidden'); spw.classList.add('inline-flex'); }
     cont.appendChild(frag);
     iconos(); recalcular();
     if (enfocar) { var el = enfocar === 'desc' ? $('[data-desc]', f) : $('[data-cant]', f); el.focus(); el.select(); }
@@ -168,7 +168,7 @@
   /* Buscador de productos */
   D.productos.forEach(function (p) { p._busca = [p.nombre, p.codigo, p.descripcion].join(' '); });
   var inProd = $('#prod_buscar');
-  if (inProd && !inProd.disabled) {
+  if (inProd) {
     combo(inProd, $('#prod_lista'), function () { return D.productos; }, function (p) {
       return '<span class="min-w-0 flex-1"><span class="block truncate font-semibold text-slate-800">' + esc(p.nombre) + '</span>' +
         '<span class="block truncate text-xs text-slate-500">' + esc([p.codigo, p.unidad].filter(Boolean).join(' · ')) + '</span></span>' +
@@ -188,6 +188,45 @@
       inProd.value = '';
     });
   }
+
+  /* Modal nuevo producto (con proveedor) */
+  var modalP = $('#modal-producto'), formP = $('#form-producto'), errP = $('#prod-error'), calcP = $('#prod-calc');
+  function calcProd() {
+    var pv = provPorId[+formP.proveedor_id.value], v = num(formP.precio.value);
+    if (!pv) { calcP.classList.add('hidden'); return; }
+    var costo = Math.round(v * (1 - pv.pct / 100) * 100) / 100;
+    calcP.innerHTML = 'Pagas a ' + esc(pv.nombre) + ' <strong>' + esc(D.moneda) + ' ' + fmt(costo) + '</strong> · tu comision <strong>' + esc(D.moneda) + ' ' + fmt(v - costo) + '</strong>';
+    calcP.classList.remove('hidden');
+  }
+  function abrirP() {
+    formP.reset(); errP.classList.add('hidden'); calcP.classList.add('hidden');
+    var q = inProd && inProd.value.trim(); if (q) formP.nombre.value = q;
+    modalP.classList.remove('hidden'); modalP.classList.add('flex');
+    setTimeout(function () { formP.nombre.focus(); }, 50);
+  }
+  function cerrarP() { modalP.classList.add('hidden'); modalP.classList.remove('flex'); }
+  $('#btn-nuevo-producto').addEventListener('click', abrirP);
+  Array.prototype.forEach.call(modalP.querySelectorAll('[data-cerrar-producto]'), function (b) { b.addEventListener('click', cerrarP); });
+  modalP.addEventListener('click', function (ev) { if (ev.target === modalP) cerrarP(); });
+  formP.proveedor_id.addEventListener('change', calcProd);
+  formP.precio.addEventListener('input', calcProd);
+  formP.addEventListener('submit', function (ev) {
+    ev.preventDefault(); ev.stopPropagation();
+    var fd = new FormData(formP); fd.append('csrf', D.csrf);
+    var btn = formP.querySelector('[type=submit]'); btn.disabled = true;
+    fetch('productos.php?accion=rapido', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { errP.textContent = r.error || 'No se pudo guardar.'; errP.classList.remove('hidden'); return; }
+        var p = r.producto; p._busca = [p.nombre, p.codigo, p.descripcion].join(' ');
+        D.productos.push(p);
+        if (inProd) { inProd.disabled = false; inProd.placeholder = 'Busca un producto para agregarlo'; inProd.value = ''; }
+        agregarLinea({ producto_id: p.id, proveedor_id: p.proveedor_id, descripcion: p.nombre, unidad: p.unidad, cantidad: 1, precio: p.precio }, 'cant');
+        cerrarP();
+      })
+      .catch(function () { btn.disabled = false; errP.textContent = 'Error de conexion. Intenta de nuevo.'; errP.classList.remove('hidden'); });
+  });
 
   D.lineas.forEach(function (l) { agregarLinea(l); });
   recalcular();

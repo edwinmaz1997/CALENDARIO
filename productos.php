@@ -12,6 +12,30 @@ $errores = [];
 if (is_post()) {
     csrf_check();
 
+    // Alta rapida desde el formulario de cotizacion (JSON)
+    if ($accion === 'rapido') {
+        header('Content-Type: application/json; charset=utf-8');
+        $nombre = input('nombre');
+        $precio = str_replace([',', ' '], '', input('precio', '0'));
+        $unidad = mb_substr(input('unidad', 'Unidad') ?: 'Unidad', 0, 30);
+        $provId = input_int('proveedor_id') ?: null;
+        $pv = $provId ? db_one('SELECT id, comision_pct FROM proveedores WHERE id = ? AND empresa_id = ?', [$provId, $eid]) : null;
+        if ($nombre === '') {
+            echo json_encode(['ok' => false, 'error' => 'Escribe el nombre del producto.']);
+            exit;
+        }
+        if (!is_numeric($precio) || (float)$precio < 0) {
+            echo json_encode(['ok' => false, 'error' => 'El precio no es valido.']);
+            exit;
+        }
+        db_exec('INSERT INTO productos (empresa_id, proveedor_id, nombre, unidad, precio, activo) VALUES (?, ?, ?, ?, ?, 1)', [$eid, $pv ? (int)$pv['id'] : null, mb_substr($nombre, 0, 150), $unidad, round((float)$precio, 2)]);
+        echo json_encode(['ok' => true, 'producto' => [
+            'id' => (int)db()->lastInsertId(), 'proveedor_id' => $pv ? (int)$pv['id'] : null, 'codigo' => null,
+            'nombre' => mb_substr($nombre, 0, 150), 'descripcion' => null, 'unidad' => $unidad, 'precio' => round((float)$precio, 2),
+        ]]);
+        exit;
+    }
+
     if ($accion === 'guardar') {
         $p = [
             'id'          => $id,

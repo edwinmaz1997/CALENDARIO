@@ -254,7 +254,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     <section class="card p-5 sm:p-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 class="text-base font-bold text-slate-900">Productos y servicios</h2>
-        <button type="button" class="btn btn-claro btn-sm" id="btn-linea-libre"><i data-lucide="plus"></i>Linea libre</button>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-claro btn-sm" id="btn-nuevo-producto"><i data-lucide="package-plus"></i>Nuevo producto</button>
+          <button type="button" class="btn btn-claro btn-sm" id="btn-linea-libre"><i data-lucide="plus"></i>Linea libre</button>
+        </div>
       </div>
 
       <div class="relative mb-4">
@@ -403,7 +406,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       <input class="input" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
       <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
         <p class="text-xs text-slate-400" data-meta></p>
-        <select class="linea-prov hidden rounded-md border border-slate-200 bg-white py-0.5 pl-1.5 pr-6 text-xs text-slate-600" data-prov aria-label="Proveedor"></select>
+        <label class="linea-prov hidden items-center gap-1 text-xs text-slate-500" data-prov-wrap>
+          <i data-lucide="truck" class="h-3.5 w-3.5"></i>
+          <select class="rounded-md border border-slate-200 bg-white py-1 pl-1.5 pr-6 text-xs font-semibold text-slate-700" data-prov aria-label="Proveedor"></select>
+        </label>
       </div>
     </div>
     <div class="order-2 col-span-2 flex justify-end md:order-5 md:col-span-1">
@@ -423,6 +429,35 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     </div>
   </div>
 </template>
+
+<!-- Modal nuevo producto -->
+<div id="modal-producto" class="fixed inset-0 z-50 hidden items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
+  <form id="form-producto" class="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6" data-sin-bloqueo>
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-lg font-bold text-slate-900">Nuevo producto</h3>
+      <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" data-cerrar-producto aria-label="Cerrar"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div id="prod-error" class="mb-3 hidden rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"></div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="campo sm:col-span-2"><span>Nombre *</span><input class="input" name="nombre" maxlength="150" required></label>
+      <label class="campo"><span>Precio de venta (<?= e($emp['moneda']) ?>) *</span><input class="input text-right" name="precio" inputmode="decimal" required placeholder="0.00"></label>
+      <label class="campo"><span>Unidad</span><input class="input" name="unidad" value="Unidad" maxlength="30"></label>
+      <label class="campo sm:col-span-2"><span>Proveedor</span>
+        <select class="select" name="proveedor_id" id="prod-proveedor">
+          <option value="">Propio (sin proveedor)</option>
+          <?php foreach ($proveedoresJs as $pv): ?><option value="<?= (int)$pv['id'] ?>"><?= e($pv['nombre']) ?> (<?= e(rtrim(rtrim(number_format($pv['pct'], 2, '.', ''), '0'), '.')) ?>%)</option><?php endforeach; ?>
+        </select>
+        <?php if (!$proveedoresJs): ?><p class="ayuda">Aun no tienes proveedores. <a href="proveedores.php?accion=nuevo" target="_blank" class="font-semibold texto-marca hover:underline">Crear proveedor</a></p><?php endif; ?>
+      </label>
+      <p id="prod-calc" class="hidden rounded-xl bg-marca-suave px-3 py-2.5 text-sm text-slate-700 sm:col-span-2"></p>
+    </div>
+    <p class="ayuda mt-3">Se guarda en tu catalogo de productos y se agrega a esta cotizacion.</p>
+    <div class="mt-5 flex gap-3">
+      <button type="button" class="btn btn-claro flex-1" data-cerrar-producto>Cancelar</button>
+      <button type="submit" class="btn btn-primario flex-1"><i data-lucide="check"></i>Guardar y agregar</button>
+    </div>
+  </form>
+</div>
 
 <!-- Modal nuevo cliente -->
 <div id="modal-cliente" class="fixed inset-0 z-50 hidden items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
