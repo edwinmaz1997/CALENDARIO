@@ -34,7 +34,7 @@ foreach (proveedores_con_saldo($eid) as $pv) {
     }
 }
 
-$proximos = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
+$proximos = db_all("SELECT c.id, c.correlativo, c.nombre_evento, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
         (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado
     FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.fecha_evento >= ?
@@ -92,7 +92,7 @@ require __DIR__ . '/includes/header.php';
         <a href="liquidacion.php?id=<?= (int)$al['id'] ?>" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-2">
-              <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['cliente']) ?></p>
+              <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['nombre_evento'] ?: $al['cliente']) ?></p>
               <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold <?= $al['dias'] < 0 ? 'bg-rose-100 text-rose-700' : ($al['dias'] <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700') ?>"><?= e(texto_dias($al['dias'])) ?></span>
             </div>
             <p class="text-xs text-slate-500"><?= e(numero_cotizacion($al, $emp)) ?> · <?= e(fecha($al['fecha_evento'])) ?></p>
@@ -138,7 +138,7 @@ require __DIR__ . '/includes/header.php';
                   <span class="text-lg font-extrabold leading-tight"><?= date('j', $ts) ?></span>
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="truncate text-sm font-semibold text-slate-900"><?= e($p['cliente']) ?></p>
+                  <p class="truncate text-sm font-semibold text-slate-900"><?= e($p['nombre_evento'] ?: $p['cliente']) ?></p>
                   <p class="truncate text-xs text-slate-500"><?= e(implode(' · ', array_filter([hora($p['hora_evento']), $p['lugar_evento']])) ?: numero_cotizacion($p, $emp)) ?></p>
                 </div>
                 <div class="shrink-0 text-right">

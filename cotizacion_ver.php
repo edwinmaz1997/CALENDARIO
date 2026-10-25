@@ -49,8 +49,8 @@ if (is_post()) {
         try {
             db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
             $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado)
-                     SELECT empresa_id, ?, cliente_id, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
+            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado)
+                     SELECT empresa_id, ?, cliente_id, nombre_evento, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
             $nuevo = (int)$pdo->lastInsertId();
             db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden)
                      SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
@@ -305,6 +305,7 @@ require __DIR__ . '/includes/header.php';
         </div>
         <div>
           <p class="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Evento</p>
+          <?php if (!empty($cot['nombre_evento'])): ?><p class="font-extrabold texto-marca"><?= e($cot['nombre_evento']) ?></p><?php endif; ?>
           <p class="font-bold text-slate-900"><?= e(fecha_larga($cot['fecha_evento'])) ?><?= $cot['hora_evento'] ? ' · ' . e(hora($cot['hora_evento'])) : '' ?></p>
           <?php if ($cot['lugar_evento']): ?><p class="text-sm text-slate-600"><?= e($cot['lugar_evento']) ?></p><?php endif; ?>
         </div>

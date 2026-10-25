@@ -302,7 +302,8 @@ function recordatorios_proveedores_chat($cot, $emp)
         $enviados[(int)$r['destinatario_id']] = $r['cuando'];
     }
     $dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-    $fecha = ucfirst($dias[(int)date('w', strtotime($cot['fecha_evento']))]) . ' ' . fecha_larga($cot['fecha_evento']) . ($cot['hora_evento'] ? ', ' . hora($cot['hora_evento']) : '');
+    $fecha = $dias[(int)date('w', strtotime($cot['fecha_evento']))] . ' ' . fecha_larga($cot['fecha_evento']);
+    $nombreEv = trim((string)($cot['nombre_evento'] ?? ''));
     $numero = numero_cotizacion($cot, $emp);
     $out = [];
     foreach ($grupos as $pid => $ls) {
@@ -317,10 +318,9 @@ function recordatorios_proveedores_chat($cot, $emp)
         }
         $saludo = $pv['contacto'] ?: $pv['nombre'];
         $msg = "Hola " . $saludo . ", te saluda " . $emp['nombre'] . ".\n"
-            . "Te recordamos el evento " . $numero . " (" . $cliente['nombre'] . "):\n\n"
-            . "📅 " . $fecha . "\n"
-            . ($cot['lugar_evento'] ? "📍 " . $cot['lugar_evento'] . "\n" : '')
-            . "\nProductos a entregar:\n" . implode("\n", $items) . "\n\n"
+            . "Te recordamos del evento " . ($nombreEv !== '' ? '"' . $nombreEv . '"' : $numero . " (" . $cliente['nombre'] . ")") . " del " . $fecha . ".\n\n"
+            . ($cot['lugar_evento'] ? "📍 " . $cot['lugar_evento'] . "\n\n" : '')
+            . "Productos a entregar:\n" . implode("\n", $items) . "\n\n"
             . "Por favor confirmanos. ¡Gracias!";
         $tel = wa_telefono($pv['telefono']);
         $out[] = [

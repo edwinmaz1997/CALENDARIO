@@ -11,7 +11,7 @@ if (!defined('DIAS_ALERTA')) {
 function eventos_por_liquidar($eid, $dias = DIAS_ALERTA)
 {
     $limite = date('Y-m-d', strtotime('+' . (int)$dias . ' days'));
-    $rows = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
+    $rows = db_all("SELECT c.id, c.correlativo, c.nombre_evento, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
             COALESCE(pg.pagado, 0) AS cobrado,
             COALESCE(d.costo, 0) AS costo_prov,
             COALESCE(pp.abonado, 0) AS abonado_prov

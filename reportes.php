@@ -38,7 +38,7 @@ $desde = $desde ?: $ini;
 $hasta = $hasta ?: $fin;
 
 /* ---------- Eventos aceptados del periodo (por fecha del evento) ---------- */
-$eventos = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
+$eventos = db_all("SELECT c.id, c.correlativo, c.nombre_evento, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
         COALESCE(pg.pagado, 0) AS cobrado,
         COALESCE(d.costo, 0) AS costo,
         COALESCE(pp.abonado, 0) AS abonado_prov
@@ -127,13 +127,13 @@ if (input('exportar') === 'csv') {
     fwrite($out, "\xEF\xBB\xBF"); // BOM para Excel
     fputcsv($out, ['Reporte', $emp['nombre'], $etiqueta]);
     fputcsv($out, []);
-    fputcsv($out, ['Cotizacion', 'Fecha evento', 'Cliente', 'Lugar', 'Total', 'Cobrado', 'Por cobrar', 'Costo proveedores', 'Ganancia', 'Abonado a proveedores']);
+    fputcsv($out, ['Cotizacion', 'Evento', 'Fecha evento', 'Cliente', 'Lugar', 'Total', 'Cobrado', 'Por cobrar', 'Costo proveedores', 'Ganancia', 'Abonado a proveedores']);
     foreach ($eventos as $ev) {
-        fputcsv($out, [numero_cotizacion($ev, $emp), $ev['fecha_evento'], $ev['cliente'], $ev['lugar_evento'],
+        fputcsv($out, [numero_cotizacion($ev, $emp), $ev['nombre_evento'], $ev['fecha_evento'], $ev['cliente'], $ev['lugar_evento'],
             number_format($ev['total'], 2, '.', ''), number_format($ev['cobrado'], 2, '.', ''), number_format($ev['total'] - $ev['cobrado'], 2, '.', ''),
             number_format($ev['costo'], 2, '.', ''), number_format($ev['total'] - $ev['costo'], 2, '.', ''), number_format($ev['abonado_prov'], 2, '.', '')]);
     }
-    fputcsv($out, ['TOTAL', '', $k['eventos'] . ' eventos', '', number_format($k['vendido'], 2, '.', ''), number_format($k['cobrado'], 2, '.', ''),
+    fputcsv($out, ['TOTAL', '', '', $k['eventos'] . ' eventos', '', number_format($k['vendido'], 2, '.', ''), number_format($k['cobrado'], 2, '.', ''),
         number_format($k['por_cobrar'], 2, '.', ''), number_format($k['costo'], 2, '.', ''), number_format($k['ganancia'], 2, '.', ''), number_format($k['abonado_prov'], 2, '.', '')]);
     fputcsv($out, []);
     fputcsv($out, ['Flujo del periodo (por fecha de pago)']);
@@ -280,7 +280,7 @@ function kpi($titulo, $valor, $sub, $color = 'text-slate-900')
             <tr>
               <td class="td-principal">
                 <a href="cotizacion_ver.php?id=<?= (int)$ev['id'] ?>" class="font-semibold texto-marca hover:underline"><?= e(numero_cotizacion($ev, $emp)) ?></a>
-                <span class="text-sm text-slate-800"><?= e($ev['cliente']) ?></span>
+                <span class="text-sm text-slate-800"><?= e($ev['cliente']) ?></span><?php if (!empty($ev['nombre_evento'])): ?><span class="block text-xs font-semibold texto-marca"><?= e($ev['nombre_evento']) ?></span><?php endif; ?>
                 <p class="text-xs text-slate-500"><?= e(fecha($ev['fecha_evento'])) ?><?= $ev['lugar_evento'] ? ' · ' . e($ev['lugar_evento']) : '' ?></p>
               </td>
               <td data-label="Total" class="whitespace-nowrap font-semibold md:text-right"><?= e(money($ev['total'], $mon)) ?></td>

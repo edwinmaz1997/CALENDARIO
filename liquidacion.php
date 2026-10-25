@@ -71,7 +71,8 @@ require __DIR__ . '/includes/header.php';
     <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
       <div class="min-w-0">
         <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Reporte de liquidacion</p>
-        <p class="text-xl font-extrabold text-slate-900"><?= e($cliente['nombre']) ?></p>
+        <p class="text-xl font-extrabold text-slate-900"><?= e($cot['nombre_evento'] ?: $cliente['nombre']) ?></p>
+        <?php if (!empty($cot['nombre_evento'])): ?><p class="text-sm font-semibold text-slate-700"><?= e($cliente['nombre']) ?></p><?php endif; ?>
         <p class="text-sm text-slate-600"><?= e($numero) ?> · <?= e(ucfirst(fecha_larga($cot['fecha_evento']))) ?><?= $cot['hora_evento'] ? ', ' . e(hora($cot['hora_evento'])) : '' ?></p>
         <?php if ($cot['lugar_evento']): ?><p class="text-sm text-slate-500"><?= e($cot['lugar_evento']) ?></p><?php endif; ?>
         <?php if ($cliente['telefono']): ?><p class="text-sm text-slate-500">Cliente: <a href="tel:<?= e(preg_replace('/[^0-9+]/', '', $cliente['telefono'])) ?>" class="hover:underline"><?= e($cliente['telefono']) ?></a></p><?php endif; ?>

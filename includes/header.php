@@ -138,7 +138,7 @@ if ($_u && $_u['rol'] === 'admin') {
               <li>
                 <a href="liquidacion.php?id=<?= (int)$al['id'] ?>" class="block px-4 py-3 hover:bg-slate-50">
                   <div class="flex items-center justify-between gap-2">
-                    <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['cliente']) ?></p>
+                    <p class="truncate text-sm font-semibold text-slate-900"><?= e($al['nombre_evento'] ?: $al['cliente']) ?></p>
                     <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold <?= $al['dias'] < 0 ? 'bg-rose-100 text-rose-700' : ($al['dias'] <= 1 ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700') ?>"><?= e(texto_dias($al['dias'])) ?></span>
                   </div>
                   <p class="text-xs text-slate-500"><?= e(numero_cotizacion($al, $_emp)) ?> · <?= e(fecha($al['fecha_evento'])) ?></p>

@@ -36,9 +36,9 @@ if (valid_date($hasta)) {
 }
 if ($q !== '') {
     $num = (int)preg_replace('/\D/', '', $q);
-    $where .= ' AND (cl.nombre LIKE ? OR cl.nit LIKE ? OR c.lugar_evento LIKE ?' . ($num ? ' OR c.correlativo = ?' : '') . ')';
+    $where .= ' AND (cl.nombre LIKE ? OR cl.nit LIKE ? OR c.lugar_evento LIKE ? OR c.nombre_evento LIKE ?' . ($num ? ' OR c.correlativo = ?' : '') . ')';
     $like = '%' . $q . '%';
-    array_push($params, $like, $like, $like);
+    array_push($params, $like, $like, $like, $like);
     if ($num) {
         $params[] = $num;
     }
@@ -82,7 +82,7 @@ require __DIR__ . '/includes/header.php';
 <form class="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end" method="get">
   <?php if ($estado): ?><input type="hidden" name="estado" value="<?= e($estado) ?>"><?php endif; ?>
   <label class="campo sm:col-span-2"><span>Buscar</span>
-    <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Numero, cliente, NIT o lugar">
+    <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Numero, cliente, evento, NIT o lugar">
   </label>
   <label class="campo"><span>Evento desde</span><input class="input" type="date" name="desde" value="<?= e($desde) ?>"></label>
   <label class="campo"><span>Evento hasta</span><input class="input" type="date" name="hasta" value="<?= e($hasta) ?>"></label>
@@ -109,7 +109,7 @@ require __DIR__ . '/includes/header.php';
           <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>" class="font-bold texto-marca hover:underline"><?= e(numero_cotizacion($c, $emp)) ?></a>
           <p class="text-xs text-slate-500">Creada <?= e(fecha($c['fecha'])) ?><?php if ((int)$c['adjuntos']): ?> · <span class="inline-flex items-center gap-0.5" title="Archivos adjuntos"><i data-lucide="paperclip" class="h-3 w-3"></i><?= (int)$c['adjuntos'] ?></span><?php endif; ?></p>
         </td>
-        <td data-label="Cliente" class="font-medium text-slate-800"><?= e($c['cliente']) ?></td>
+        <td data-label="Cliente" class="font-medium text-slate-800"><?= e($c['cliente']) ?><?php if (!empty($c['nombre_evento'])): ?><span class="block text-xs font-semibold texto-marca"><?= e($c['nombre_evento']) ?></span><?php endif; ?></td>
         <td data-label="Evento">
           <span class="whitespace-nowrap"><?= e(fecha($c['fecha_evento'])) ?></span>
           <?php if ($c['hora_evento']): ?><span class="text-xs text-slate-500"><?= e(hora($c['hora_evento'])) ?></span><?php endif; ?>

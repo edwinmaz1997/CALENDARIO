@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   empresa_id       INT UNSIGNED NOT NULL,
   correlativo      INT UNSIGNED NOT NULL,
   cliente_id       INT UNSIGNED NOT NULL,
+  nombre_evento    VARCHAR(150) NULL,
   usuario_id       INT UNSIGNED NULL,
   fecha            DATE         NOT NULL,
   fecha_evento     DATE         NOT NULL,

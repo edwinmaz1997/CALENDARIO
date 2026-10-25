@@ -20,7 +20,7 @@ if (!valid_date($inicio) || !valid_date($fin)) {
     $fin = date('Y-m-t');
 }
 
-$rows = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente
+$rows = db_all("SELECT c.id, c.correlativo, c.nombre_evento, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente
     FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.fecha_evento >= ? AND c.fecha_evento < ?
     ORDER BY c.fecha_evento, c.hora_evento", [$eid, $inicio, $fin]);
@@ -29,7 +29,7 @@ $eventos = [];
 foreach ($rows as $r) {
     $ev = [
         'id'     => (int)$r['id'],
-        'title'  => $r['cliente'],
+        'title'  => $r['nombre_evento'] ? $r['nombre_evento'] . ' · ' . $r['cliente'] : $r['cliente'],
         'start'  => $r['fecha_evento'] . ($r['hora_evento'] ? 'T' . substr($r['hora_evento'], 0, 5) : ''),
         'allDay' => !$r['hora_evento'],
         'url'    => 'cotizacion_ver.php?id=' . (int)$r['id'],

@@ -26,7 +26,7 @@ if ($id) {
 } else {
     $cot = [
         'id' => 0, 'cliente_id' => input_int('cliente_id') ?: null, 'fecha' => date('Y-m-d'),
-        'fecha_evento' => valid_date(input('fecha_evento')) ? input('fecha_evento') : '', 'hora_evento' => '', 'lugar_evento' => '', 'notas' => '',
+        'fecha_evento' => valid_date(input('fecha_evento')) ? input('fecha_evento') : '', 'hora_evento' => '', 'lugar_evento' => '', 'nombre_evento' => '', 'notas' => '',
     ];
     $lineas = [];
 }
@@ -43,6 +43,7 @@ if (is_post()) {
     $cot['fecha_evento'] = input('fecha_evento');
     $cot['hora_evento']  = input('hora_evento');
     $cot['lugar_evento'] = input('lugar_evento');
+    $cot['nombre_evento'] = mb_substr(input('nombre_evento'), 0, 150);
     $cot['notas']        = input('notas');
 
     // Lineas
@@ -131,16 +132,16 @@ if (is_post()) {
             $hora = $cot['hora_evento'] !== '' ? $cot['hora_evento'] : null;
             if ($id) {
                 $huellaAntes = huella_cotizacion($id);
-                db_exec('UPDATE cotizaciones SET cliente_id = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', [
-                    $cot['cliente_id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total, $id, $eid,
+                db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', [
+                    $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total, $id, $eid,
                 ]);
                 db_exec('DELETE FROM cotizacion_detalle WHERE cotizacion_id = ?', [$id]);
             } else {
                 // Bloquea la fila de la empresa para generar el correlativo sin duplicados
                 db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
                 $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', [
-                    $eid, $corr, $cot['cliente_id'], $u['id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total,
+                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', [
+                    $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total,
                 ]);
                 $id = (int)$pdo->lastInsertId();
             }
@@ -328,6 +329,9 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     <section class="card p-5 sm:p-6">
       <h2 class="mb-4 text-base font-bold text-slate-900">Evento</h2>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+        <label class="campo sm:col-span-2 lg:col-span-1"><span>Nombre del evento</span>
+          <input class="input" name="nombre_evento" value="<?= e($cot['nombre_evento'] ?? '') ?>" maxlength="150" placeholder="Ej: Boda de Ana y Luis, XV años de Sofia">
+        </label>
         <label class="campo"><span>Fecha del evento *</span>
           <input class="input" type="date" name="fecha_evento" value="<?= e($cot['fecha_evento']) ?>" required>
         </label>
