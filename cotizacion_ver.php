@@ -538,7 +538,11 @@ require __DIR__ . '/includes/header.php';
     </a>
 
     <!-- Envio al cliente -->
-    <?php $msgCliente = 'Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.'; ?>
+    <?php
+      $msgCliente = 'Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.';
+      $msgConEnlace = $msgCliente . "\n\nPuedes ver y descargar el PDF aqui:\n" . enlace_publico_cotizacion($id);
+      $waLink = 'https://wa.me/' . ($telWa ?: '') . '?text=' . rawurlencode($msgConEnlace);
+    ?>
     <div class="card p-5" id="envio-cliente">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-sm font-bold text-slate-900">Enviar al cliente</h3>
@@ -553,13 +557,10 @@ require __DIR__ . '/includes/header.php';
       <?php endif; ?>
 
       <div class="mt-3 space-y-2">
-        <button type="button" class="btn btn-exito w-full" id="btn-compartir-pdf"
-                data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1"
-                data-nombre="<?= e($numero) ?>.pdf"
-                data-texto="<?= e($msgCliente) ?>"
-                data-wa="<?= $telWa ? e('https://wa.me/' . $telWa . '?text=' . rawurlencode($msgCliente)) : '' ?>">
-          <i data-lucide="share-2"></i>Enviar PDF por WhatsApp
-        </button>
+        <a href="<?= e($waLink) ?>" target="_blank" rel="noopener" class="btn btn-exito w-full" data-marcar-enviada>
+          <i data-lucide="message-circle"></i><?= $telWa ? 'Enviar por WhatsApp a ' . e($cliente['telefono']) : 'Enviar por WhatsApp' ?>
+        </a>
+        <?php if (!$telWa): ?><p class="text-[11px] text-amber-700">El cliente no tiene telefono: WhatsApp te pedira elegir el contacto. <a href="clientes.php?accion=editar&id=<?= (int)$cliente['id'] ?>" class="font-semibold underline">Agregar telefono</a></p><?php endif; ?>
         <?php if (!empty($cliente['correo'])): ?>
           <form method="post" data-confirmar="Enviar la cotizacion en PDF a <?= e($cliente['correo']) ?>?">
             <?= csrf_field() ?><input type="hidden" name="accion" value="enviar_correo_cliente">
@@ -567,7 +568,13 @@ require __DIR__ . '/includes/header.php';
           </form>
         <?php endif; ?>
       </div>
-      <p class="mt-2 text-[11px] text-slate-400" id="ayuda-compartir">Se abre el menu de compartir del celular con el PDF adjunto: elige WhatsApp y el chat del cliente. Al compartir se marca como enviada.</p>
+      <p class="mt-2 text-[11px] text-slate-400">Abre el chat del cliente con el mensaje y el enlace al PDF de la cotizacion; solo presiona enviar. Se marca como enviada.</p>
+      <button type="button" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold texto-marca hover:underline" id="btn-compartir-pdf"
+              data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e($numero) ?>.pdf"
+              data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waLink) ?>">
+        <i data-lucide="paperclip" class="h-3.5 w-3.5"></i>Prefiero compartir el archivo PDF
+      </button>
+      <p class="hidden" id="ayuda-compartir"></p>
 
       <div class="mt-3 border-t border-slate-100 pt-3">
         <?php if ($cot['enviada_at']): ?>

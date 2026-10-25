@@ -251,3 +251,34 @@ function url_con($params)
         return $v !== '' && $v !== null;
     }));
 }
+
+/** URL base publica del sistema (config app.url o la del servidor actual) */
+function url_base()
+{
+    $u = rtrim((string)($GLOBALS['CONFIG']['app']['url'] ?? ''), '/');
+    if ($u !== '' && strpos($u, 'tudominio') === false) {
+        return $u;
+    }
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+    return ($https ? 'https' : 'http') . '://' . $host . $dir;
+}
+
+/** Devuelve (y crea si no existe) el token publico de una cotizacion */
+function token_publico_cotizacion($cotId)
+{
+    $t = db_val('SELECT token_publico FROM cotizaciones WHERE id = ?', [$cotId]);
+    if (!$t) {
+        $t = bin2hex(random_bytes(16));
+        db_exec('UPDATE cotizaciones SET token_publico = ? WHERE id = ? AND token_publico IS NULL', [$t, $cotId]);
+        $t = db_val('SELECT token_publico FROM cotizaciones WHERE id = ?', [$cotId]);
+    }
+    return $t;
+}
+
+function enlace_publico_cotizacion($cotId)
+{
+    return url_base() . '/c.php?t=' . token_publico_cotizacion($cotId);
+}
+

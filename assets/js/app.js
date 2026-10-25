@@ -69,6 +69,22 @@
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') panel.classList.add('hidden'); });
   }
 
+  // Enlace directo al chat de WhatsApp del cliente: marca la cotizacion como enviada sin bloquear la apertura
+  document.querySelectorAll('[data-marcar-enviada]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var c = document.querySelector('#envio-cliente input[name=csrf]');
+      var fd = new FormData(); fd.append('csrf', c ? c.value : ''); fd.append('accion', 'enviada_ajax');
+      var url = window.location.pathname + window.location.search;
+      if (!(navigator.sendBeacon && navigator.sendBeacon(url, fd))) {
+        fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', keepalive: true }).catch(function () {});
+      }
+      // Al regresar a la app se actualiza el estado
+      var alVolver = function () { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', alVolver); window.location.reload(); } };
+      document.addEventListener('visibilitychange', alVolver);
+      setTimeout(function () { if (document.visibilityState === 'visible') window.location.reload(); }, 2500);
+    });
+  });
+
   // Compartir el PDF de la cotizacion (WhatsApp u otra app) y marcarla como enviada
   var btnPdf = document.getElementById('btn-compartir-pdf');
   if (btnPdf) {
@@ -114,7 +130,7 @@
       }).catch(function (e) {
         if (!e || e.name !== 'AbortError') alert('No se pudo preparar el PDF. Revisa tu conexion e intenta de nuevo.');
       }).then(function () {
-        btnPdf.disabled = false; btnPdf.innerHTML = html;
+        btnPdf.disabled = false; btnPdf.innerHTML = html; if (window.lucide) window.lucide.createIcons();
       });
     });
   }

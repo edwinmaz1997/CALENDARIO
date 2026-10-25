@@ -2,7 +2,7 @@
  * - Paginas PHP: siempre desde la red (datos al dia); sin conexion muestra offline.html.
  * - CSS, JS, iconos y librerias: se guardan en cache para cargar rapido.
  */
-const VERSION = 'cotizador-v8';
+const VERSION = 'cotizador-v9';
 const ESTATICOS = [
   'offline.html',
   'assets/css/tailwind.css',
