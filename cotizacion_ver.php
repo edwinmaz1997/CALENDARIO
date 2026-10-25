@@ -107,6 +107,39 @@ if (is_post()) {
             }
         }
         redirect('cotizacion_ver.php?id=' . $id . '#whatsapp');
+    } elseif ($accion === 'enviar_correo_cliente') {
+        require_once APP_ROOT . '/includes/correo.php';
+        require_once APP_ROOT . '/includes/pdf_cotizacion.php';
+        $cli = db_one('SELECT * FROM clientes WHERE id = ?', [$cot['cliente_id']]);
+        if (empty($cli['correo']) || !filter_var($cli['correo'], FILTER_VALIDATE_EMAIL)) {
+            flash('error', 'El cliente no tiene un correo valido.');
+        } else {
+            $lin = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
+            $num = numero_cotizacion($cot, $emp);
+            $pdfBin = construir_pdf_cotizacion($cot, $emp, $cli, $lin)->Output('S');
+            $c1 = $emp['color_primario'];
+            $html = '<div style="font-family:Segoe UI,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#334155">'
+                . '<div style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:18px 22px;border-radius:12px 12px 0 0;font-size:18px;font-weight:bold">' . e($emp['nombre']) . '</div>'
+                . '<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:22px">'
+                . '<p>Hola ' . e($cli['nombre']) . ',</p>'
+                . '<p>Te compartimos la cotizacion <strong>' . e($num) . '</strong> para tu evento del <strong>' . e(fecha_larga($cot['fecha_evento'])) . '</strong> por un total de <strong>' . e(money($cot['total'], $emp['moneda'])) . '</strong>.</p>'
+                . '<p>Encontraras el detalle en el PDF adjunto. Puedes responder a este correo para cualquier consulta o para confirmar.</p>'
+                . '<p style="margin-top:22px;color:#64748b;font-size:13px">' . e($emp['nombre']) . ($emp['telefono'] ? ' · ' . e($emp['telefono']) : '') . ($emp['correo'] ? ' · ' . e($emp['correo']) : '') . '</p>'
+                . '</div></div>';
+            list($okMail, $errMail) = enviar_correo($cli['correo'], 'Cotizacion ' . $num . ' - ' . $emp['nombre'], $html, '',
+                [['contenido' => $pdfBin, 'nombre' => $num . '.pdf', 'mime' => 'application/pdf']], $emp['correo'] ?: null, $emp['nombre']);
+            if ($okMail) {
+                db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+                flash('ok', 'Cotizacion enviada en PDF a ' . $cli['correo'] . ' y marcada como enviada.');
+            } else {
+                flash('error', 'No se pudo enviar el correo: ' . $errMail);
+            }
+        }
+    } elseif ($accion === 'enviada_ajax') {
+        db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => true]);
+        exit;
     } elseif ($accion === 'enviada') {
         db_exec('UPDATE cotizaciones SET enviada_at = NOW() WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Cotizacion marcada como enviada al cliente.');
@@ -505,9 +538,10 @@ require __DIR__ . '/includes/header.php';
     </a>
 
     <!-- Envio al cliente -->
-    <div class="card p-5">
+    <?php $msgCliente = 'Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.'; ?>
+    <div class="card p-5" id="envio-cliente">
       <div class="flex items-center justify-between gap-3">
-        <h3 class="text-sm font-bold text-slate-900">Envio al cliente</h3>
+        <h3 class="text-sm font-bold text-slate-900">Enviar al cliente</h3>
         <?php if ($cot['enviada_at']): ?>
           <span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>
         <?php else: ?>
@@ -515,18 +549,37 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
       <?php if ($cot['enviada_at']): ?>
-        <p class="mt-2 text-sm text-slate-600">Enviada el <?= e(fecha($cot['enviada_at'], true)) ?>.</p>
-        <form method="post" class="mt-2"><?= csrf_field() ?><input type="hidden" name="accion" value="no_enviada">
-          <button class="text-xs font-semibold text-slate-500 hover:underline">Desmarcar</button>
-        </form>
-      <?php else: ?>
-        <form method="post" class="mt-3"><?= csrf_field() ?><input type="hidden" name="accion" value="enviada">
-          <button class="btn btn-primario w-full"><i data-lucide="send"></i>Marcar como enviada</button>
-        </form>
+        <p class="mt-1 text-xs text-slate-500">Enviada el <?= e(fecha($cot['enviada_at'], true)) ?>.</p>
       <?php endif; ?>
-      <?php if ($telWa): ?>
-        <a href="https://wa.me/<?= e($telWa) ?>?text=<?= rawurlencode('Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.') ?>" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline"><i data-lucide="message-circle" class="h-4 w-4"></i>Abrir chat de WhatsApp con <?= e($cliente['telefono']) ?></a>
-      <?php endif; ?>
+
+      <div class="mt-3 space-y-2">
+        <button type="button" class="btn btn-exito w-full" id="btn-compartir-pdf"
+                data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1"
+                data-nombre="<?= e($numero) ?>.pdf"
+                data-texto="<?= e($msgCliente) ?>"
+                data-wa="<?= $telWa ? e('https://wa.me/' . $telWa . '?text=' . rawurlencode($msgCliente)) : '' ?>">
+          <i data-lucide="share-2"></i>Enviar PDF por WhatsApp
+        </button>
+        <?php if (!empty($cliente['correo'])): ?>
+          <form method="post" data-confirmar="Enviar la cotizacion en PDF a <?= e($cliente['correo']) ?>?">
+            <?= csrf_field() ?><input type="hidden" name="accion" value="enviar_correo_cliente">
+            <button class="btn btn-claro w-full"><i data-lucide="mail"></i>Enviar PDF por correo</button>
+          </form>
+        <?php endif; ?>
+      </div>
+      <p class="mt-2 text-[11px] text-slate-400" id="ayuda-compartir">Se abre el menu de compartir del celular con el PDF adjunto: elige WhatsApp y el chat del cliente. Al compartir se marca como enviada.</p>
+
+      <div class="mt-3 border-t border-slate-100 pt-3">
+        <?php if ($cot['enviada_at']): ?>
+          <form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="no_enviada">
+            <button class="text-xs font-semibold text-slate-500 hover:underline">Desmarcar como enviada</button>
+          </form>
+        <?php else: ?>
+          <form method="post" id="form-marcar-enviada"><?= csrf_field() ?><input type="hidden" name="accion" value="enviada">
+            <button class="text-xs font-semibold text-slate-500 hover:underline">Ya la envie por otro medio: marcar como enviada</button>
+          </form>
+        <?php endif; ?>
+      </div>
     </div>
 
     <?php if ($cot['estado'] === 'aceptada'): ?>

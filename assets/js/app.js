@@ -69,6 +69,56 @@
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') panel.classList.add('hidden'); });
   }
 
+  // Compartir el PDF de la cotizacion (WhatsApp u otra app) y marcarla como enviada
+  var btnPdf = document.getElementById('btn-compartir-pdf');
+  if (btnPdf) {
+    var archivoPdf = null, cargando = null;
+    var csrfIn = document.querySelector('#envio-cliente input[name=csrf]');
+    function cargarPdf() {
+      if (archivoPdf) return Promise.resolve(archivoPdf);
+      if (!cargando) {
+        cargando = fetch(btnPdf.getAttribute('data-pdf'), { credentials: 'same-origin' })
+          .then(function (r) { if (!r.ok) throw new Error('pdf'); return r.blob(); })
+          .then(function (b) { archivoPdf = new File([b], btnPdf.getAttribute('data-nombre'), { type: 'application/pdf' }); return archivoPdf; })
+          .catch(function (e) { cargando = null; throw e; });
+      }
+      return cargando;
+    }
+    function marcarEnviada() {
+      var fd = new FormData(); fd.append('csrf', csrfIn ? csrfIn.value : ''); fd.append('accion', 'enviada_ajax');
+      return fetch(window.location.pathname + window.location.search, { method: 'POST', body: fd, credentials: 'same-origin' });
+    }
+    var puedeCompartir = !!(navigator.canShare && navigator.share);
+    if (puedeCompartir) cargarPdf().catch(function () {}); // se descarga antes para compartir al instante
+    else {
+      var ay = document.getElementById('ayuda-compartir');
+      if (ay) ay.textContent = 'En computadora se descarga el PDF y se abre el chat de WhatsApp del cliente para que lo adjuntes. Se marca como enviada.';
+    }
+    btnPdf.addEventListener('click', function () {
+      var html = btnPdf.innerHTML;
+      btnPdf.disabled = true; btnPdf.textContent = 'Preparando PDF...';
+      cargarPdf().then(function (f) {
+        var datos = { files: [f], title: f.name, text: btnPdf.getAttribute('data-texto') };
+        if (puedeCompartir && navigator.canShare({ files: [f] })) {
+          return navigator.share(datos).then(function () {
+            return marcarEnviada().then(function () { window.location.reload(); });
+          });
+        }
+        // Sin compartir nativo: descargar y abrir el chat
+        var url = URL.createObjectURL(f), a = document.createElement('a');
+        a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        var wa = btnPdf.getAttribute('data-wa');
+        if (wa) window.open(wa, '_blank', 'noopener');
+        return marcarEnviada().then(function () { setTimeout(function () { window.location.reload(); }, 800); });
+      }).catch(function (e) {
+        if (!e || e.name !== 'AbortError') alert('No se pudo preparar el PDF. Revisa tu conexion e intenta de nuevo.');
+      }).then(function () {
+        btnPdf.disabled = false; btnPdf.innerHTML = html;
+      });
+    });
+  }
+
   // Ocultar mensajes flash despues de un tiempo
   setTimeout(function () {
     document.querySelectorAll('.flash').forEach(function (el) {
