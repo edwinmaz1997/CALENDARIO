@@ -130,6 +130,7 @@ if (is_post()) {
             $pdo->beginTransaction();
             $hora = $cot['hora_evento'] !== '' ? $cot['hora_evento'] : null;
             if ($id) {
+                $huellaAntes = huella_cotizacion($id);
                 db_exec('UPDATE cotizaciones SET cliente_id = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', [
                     $cot['cliente_id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total, $id, $eid,
                 ]);
@@ -151,7 +152,13 @@ if (is_post()) {
                 $st->execute([$id, $l['producto_id'], $l['proveedor_id'], $l['descripcion'], nullable($l['unidad']), $l['cantidad'], $l['precio_unitario'], $sub, $pct, $costo, $i + 1]);
             }
             $pdo->commit();
-            flash('ok', $cot['id'] ? 'Cotizacion actualizada.' : 'Cotizacion creada como pendiente.');
+            $volvioPorEnviar = false;
+            if ($cot['id'] && huella_cotizacion($id) !== $huellaAntes && db_val('SELECT enviada_at FROM cotizaciones WHERE id = ?', [$id])) {
+                // Cambio el contenido: es una nueva version que hay que volver a enviar al cliente
+                db_exec('UPDATE cotizaciones SET enviada_at = NULL WHERE id = ?', [$id]);
+                $volvioPorEnviar = true;
+            }
+            flash('ok', $cot['id'] ? 'Cotizacion actualizada.' . ($volvioPorEnviar ? ' Como cambio, quedo otra vez "Por enviar".' : '') : 'Cotizacion creada como pendiente.');
             // Imagen de la cotizacion
             $imgActual = db_val('SELECT imagen FROM cotizaciones WHERE id = ?', [$id]);
             if (!empty($_POST['quitar_imagen']) && $imgActual) {

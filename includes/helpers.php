@@ -282,3 +282,11 @@ function enlace_publico_cotizacion($cotId)
     return url_base() . '/c.php?t=' . token_publico_cotizacion($cotId);
 }
 
+/** Huella del contenido de una cotizacion (cliente, fechas, lugar, notas, total y lineas) para detectar cambios */
+function huella_cotizacion($cotId)
+{
+    $c = db_one('SELECT cliente_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total FROM cotizaciones WHERE id = ?', [$cotId]);
+    $l = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
+    return md5(json_encode([$c, $l]));
+}
+

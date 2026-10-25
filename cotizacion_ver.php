@@ -41,8 +41,8 @@ if (is_post()) {
         db_exec('UPDATE cotizaciones SET estado = \'rechazada\', fecha_aceptacion = NULL, recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Cotizacion marcada como rechazada.');
     } elseif ($accion === 'pendiente' && $cot['estado'] !== 'pendiente') {
-        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL, recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
-        flash('ok', 'La cotizacion regreso a pendiente' . ($cot['estado'] === 'aceptada' ? ' y se quito del calendario.' : '.'));
+        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL, recordatorio_enviado = NULL, enviada_at = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        flash('ok', 'La cotizacion regreso a pendiente y por enviar' . ($cot['estado'] === 'aceptada' ? '; se quito del calendario.' : '.'));
     } elseif ($accion === 'duplicar') {
         $pdo = db();
         $pdo->beginTransaction();
@@ -705,7 +705,7 @@ require __DIR__ . '/includes/header.php';
 
       <div class="mt-3 flex gap-2">
         <?php if ($cot['estado'] !== 'pendiente'): ?>
-          <form method="post" class="flex-1" data-confirmar="Regresar la cotizacion a pendiente?<?= $cot['estado'] === 'aceptada' ? ' Se quitara del calendario.' : '' ?>">
+          <form method="post" class="flex-1" data-confirmar="Regresar la cotizacion a pendiente? Quedara como por enviar.<?= $cot['estado'] === 'aceptada' ? ' Se quitara del calendario.' : '' ?>">
             <?= csrf_field() ?><input type="hidden" name="accion" value="pendiente">
             <button class="btn btn-claro w-full btn-sm"><i data-lucide="rotate-ccw"></i>A pendiente</button>
           </form>
