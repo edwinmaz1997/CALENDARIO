@@ -55,19 +55,17 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
 </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased">
-<div class="login-alto flex overflow-hidden">
-  <div class="relative hidden flex-1 overflow-hidden bg-[#1E40AF] lg:block">
-    <div class="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/10"></div>
-    <div class="absolute -bottom-32 right-0 h-[28rem] w-[28rem] rounded-full bg-amber-400/20"></div>
-    <div class="relative flex h-full flex-col justify-end p-14 text-white">
-      <i data-lucide="calendar-check" class="mb-6 h-14 w-14"></i>
-      <h2 class="max-w-md text-4xl font-extrabold leading-tight">Cotiza, confirma y agenda tus eventos en un solo lugar.</h2>
-      <p class="mt-4 max-w-md text-white/80">Cada empresa con su logo, sus colores, sus productos y sus clientes.</p>
-    </div>
-  </div>
+<div class="login-alto relative flex items-center justify-center overflow-hidden lg:bg-[#1E40AF]">
+  <div class="pointer-events-none absolute -left-24 -top-24 hidden h-96 w-96 rounded-full bg-white/10 lg:block"></div>
+  <div class="pointer-events-none absolute -bottom-32 -right-20 hidden h-[28rem] w-[28rem] rounded-full bg-amber-400/20 lg:block"></div>
+  <div class="pointer-events-none absolute right-1/4 top-16 hidden h-40 w-40 rounded-full bg-white/5 lg:block"></div>
 
-  <div class="relative flex w-full items-center justify-center px-5 lg:w-[480px] lg:bg-white" style="padding-bottom: env(safe-area-inset-bottom)">
-    <div class="w-full max-w-sm">
+  <div class="relative flex w-full flex-col items-center px-5 lg:px-0" style="padding-bottom: env(safe-area-inset-bottom)">
+    <div class="mb-6 hidden max-w-md text-center text-white lg:block">
+      <h2 class="text-2xl font-extrabold leading-tight">Cotiza, confirma y agenda tus eventos en un solo lugar.</h2>
+      <p class="mt-2 text-sm text-white/80">Cada empresa con su logo, sus colores, sus productos y sus clientes.</p>
+    </div>
+    <div class="w-full max-w-sm lg:max-w-md lg:rounded-3xl lg:bg-white lg:p-10 lg:shadow-2xl">
       <div class="mb-8 flex items-center gap-3">
         <img src="assets/icons/icono-192.png" alt="" class="h-12 w-12 rounded-2xl shadow-md">
         <div>
@@ -99,8 +97,8 @@ $appNombre = $GLOBALS['CONFIG']['app']['nombre'] ?? 'Cotizador';
       </form>
       <button type="button" data-instalar-app class="btn btn-claro mt-3 hidden w-full"><i data-lucide="smartphone"></i>Instalar como aplicacion</button>
     </div>
-    <p class="absolute inset-x-0 bottom-0 px-4 pb-4 text-center text-xs text-slate-400" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">Diseñado por Edwin Mazariegos - 31586340</p>
   </div>
+    <p class="absolute inset-x-0 bottom-0 px-4 pb-4 text-center text-xs text-slate-400 lg:text-white/70" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">Diseñado por Edwin Mazariegos - 31586340</p>
 </div>
 <script>
 lucide.createIcons();
