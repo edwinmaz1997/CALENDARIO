@@ -135,6 +135,14 @@ if (is_post()) {
                 flash('error', 'No se pudo enviar el correo: ' . $errMail);
             }
         }
+    } elseif ($accion === 'prov_chat_ajax') {
+        $pid = input_int('proveedor_id');
+        if (db_val('SELECT id FROM proveedores WHERE id = ? AND empresa_id = ?', [$pid, $eid])) {
+            registrar_recordatorio_chat_proveedor($cot, $pid, wa_telefono(db_val('SELECT telefono FROM proveedores WHERE id = ?', [$pid])));
+        }
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => true]);
+        exit;
     } elseif ($accion === 'enviada_ajax') {
         db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         header('Content-Type: application/json');
@@ -248,6 +256,7 @@ $pagosRes = resumen_pagos($cot);
 $provRes = resumen_proveedores_cotizacion($id);
 $waEnvios = db_all('SELECT * FROM whatsapp_envios WHERE cotizacion_id = ? ORDER BY COALESCE(updated_at, created_at) DESC', [$id]);
 $waDest = $cot['estado'] === 'aceptada' ? wa_destinatarios($cot) : [];
+$recProv = recordatorios_proveedores_chat($cot, $emp);
 $telWa = preg_replace('/\D/', '', (string)($cliente['telefono'] ?? ''));
 if (strlen($telWa) === 8) {
     $telWa = '502' . $telWa; // Guatemala
@@ -588,6 +597,48 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
     </div>
+
+    <?php if ($recProv): ?>
+    <!-- Recordatorio a proveedores por WhatsApp (un chat por proveedor con sus productos) -->
+    <div class="card overflow-hidden" id="recordatorio-proveedores" style="scroll-margin-top:5rem">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+        <h3 class="flex items-center gap-2 text-sm font-bold text-slate-900"><i data-lucide="truck" class="h-4 w-4 texto-marca"></i>Recordatorio a proveedores</h3>
+        <span class="text-xs text-slate-500"><?= count(array_filter($recProv, function ($r) { return $r['enviado']; })) ?>/<?= count($recProv) ?> enviados</span>
+      </div>
+      <?php if ($cot['estado'] !== 'aceptada'): ?>
+        <p class="bg-amber-50 px-5 py-2 text-[11px] text-amber-800">La cotizacion aun no esta aceptada.</p>
+      <?php endif; ?>
+      <ul class="divide-y divide-slate-100">
+        <?php foreach ($recProv as $rp): ?>
+          <li class="px-5 py-3" data-prov-rec="<?= (int)$rp['id'] ?>">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-slate-900"><?= e($rp['nombre']) ?></p>
+                <p class="text-xs <?= $rp['tel_wa'] ? 'text-slate-500' : 'font-semibold text-amber-700' ?>"><?= $rp['tel_wa'] ? 'Tel: ' . e($rp['telefono']) : 'Sin telefono' ?></p>
+              </div>
+              <?php if ($rp['enviado']): ?>
+                <span class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700" data-estado>Enviado <?= e(date('d/m H:i', strtotime($rp['enviado']))) ?></span>
+              <?php else: ?>
+                <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600" data-estado>Pendiente</span>
+              <?php endif; ?>
+            </div>
+            <ul class="mt-1.5 space-y-0.5 text-xs text-slate-600">
+              <?php foreach ($rp['items'] as $it): ?><li><?= e($it) ?></li><?php endforeach; ?>
+            </ul>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <a href="<?= e($rp['enlace']) ?>" target="_blank" rel="noopener" class="btn btn-exito btn-sm" data-wa-proveedor="<?= (int)$rp['id'] ?>">
+                <i data-lucide="message-circle"></i><?= $rp['enviado'] ? 'Reenviar' : 'Enviar' ?> por WhatsApp
+              </a>
+              <?php if (!$rp['tel_wa']): ?>
+                <a href="proveedores.php?accion=editar&id=<?= (int)$rp['id'] ?>" class="btn btn-claro btn-sm"><i data-lucide="phone"></i>Agregar telefono</a>
+              <?php endif; ?>
+            </div>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+      <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400">Cada boton abre el chat de ese proveedor con su lista de productos, la fecha y el lugar del evento. Solo presiona enviar.</p>
+    </div>
+    <?php endif; ?>
 
     <?php if ($cot['estado'] === 'aceptada'): ?>
     <!-- Recordatorios por WhatsApp -->

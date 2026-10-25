@@ -85,6 +85,22 @@
     });
   });
 
+  // Recordatorio a cada proveedor por chat de WhatsApp: registra el envio sin bloquear la apertura
+  document.querySelectorAll('[data-wa-proveedor]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var c = document.querySelector('input[name=csrf]');
+      var fd = new FormData(); fd.append('csrf', c ? c.value : ''); fd.append('accion', 'prov_chat_ajax');
+      fd.append('proveedor_id', a.getAttribute('data-wa-proveedor'));
+      var url = window.location.pathname + window.location.search;
+      if (!(navigator.sendBeacon && navigator.sendBeacon(url, fd))) {
+        fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', keepalive: true }).catch(function () {});
+      }
+      var li = a.closest('[data-prov-rec]'), est = li && li.querySelector('[data-estado]');
+      if (est) { est.textContent = 'Enviado'; est.className = 'shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700'; }
+      a.lastChild.textContent = 'Reenviar por WhatsApp';
+    });
+  });
+
   // Compartir el PDF de la cotizacion (WhatsApp u otra app) y marcarla como enviada
   var btnPdf = document.getElementById('btn-compartir-pdf');
   if (btnPdf) {

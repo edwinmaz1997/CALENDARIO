@@ -280,5 +280,69 @@ function wa_etiqueta_tipo($tipo)
     if (preg_match('/^(\d+)dias$/', $tipo, $m)) {
         return $m[1] === '1' ? '1 dia antes' : $m[1] . ' dias antes';
     }
-    return $tipo === 'manual' ? 'Manual' : $tipo;
+    return $tipo === 'manual' ? 'Manual' : ($tipo === 'chat' ? 'Chat' : $tipo);
 }
+
+/**
+ * Recordatorios a proveedores por chat de WhatsApp (sin API): un mensaje por proveedor
+ * con sus productos del evento. Devuelve lista de proveedores con telefono, lineas, mensaje y enlace wa.me.
+ */
+function recordatorios_proveedores_chat($cot, $emp)
+{
+    $cliente = db_one('SELECT nombre FROM clientes WHERE id = ?', [$cot['cliente_id']]);
+    $lineas = db_all('SELECT d.proveedor_id, d.descripcion, d.unidad, d.cantidad FROM cotizacion_detalle d
+        WHERE d.cotizacion_id = ? AND d.proveedor_id IS NOT NULL ORDER BY d.orden, d.id', [$cot['id']]);
+    $grupos = [];
+    foreach ($lineas as $l) {
+        $grupos[(int)$l['proveedor_id']][] = $l;
+    }
+    $enviados = [];
+    foreach (db_all("SELECT destinatario_id, COALESCE(updated_at, created_at) AS cuando FROM whatsapp_envios
+        WHERE cotizacion_id = ? AND destinatario_tipo = 'proveedor' AND tipo = 'chat'", [$cot['id']]) as $r) {
+        $enviados[(int)$r['destinatario_id']] = $r['cuando'];
+    }
+    $dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    $fecha = ucfirst($dias[(int)date('w', strtotime($cot['fecha_evento']))]) . ' ' . fecha_larga($cot['fecha_evento']) . ($cot['hora_evento'] ? ', ' . hora($cot['hora_evento']) : '');
+    $numero = numero_cotizacion($cot, $emp);
+    $out = [];
+    foreach ($grupos as $pid => $ls) {
+        $pv = db_one('SELECT id, nombre, contacto, telefono FROM proveedores WHERE id = ?', [$pid]);
+        if (!$pv) {
+            continue;
+        }
+        $items = [];
+        foreach ($ls as $l) {
+            $cant = rtrim(rtrim(number_format((float)$l['cantidad'], 2, '.', ''), '0'), '.');
+            $items[] = '• ' . $cant . ' ' . $l['descripcion'] . ($l['unidad'] && !in_array(mb_strtolower($l['unidad']), ['unidad', 'unidades'], true) ? ' (' . $l['unidad'] . ')' : '');
+        }
+        $saludo = $pv['contacto'] ?: $pv['nombre'];
+        $msg = "Hola " . $saludo . ", te saluda " . $emp['nombre'] . ".\n"
+            . "Te recordamos el evento " . $numero . " (" . $cliente['nombre'] . "):\n\n"
+            . "📅 " . $fecha . "\n"
+            . ($cot['lugar_evento'] ? "📍 " . $cot['lugar_evento'] . "\n" : '')
+            . "\nProductos a entregar:\n" . implode("\n", $items) . "\n\n"
+            . "Por favor confirmanos. ¡Gracias!";
+        $tel = wa_telefono($pv['telefono']);
+        $out[] = [
+            'id'       => (int)$pv['id'],
+            'nombre'   => $pv['nombre'],
+            'telefono' => $pv['telefono'],
+            'tel_wa'   => $tel,
+            'items'    => $items,
+            'mensaje'  => $msg,
+            'enlace'   => 'https://wa.me/' . ($tel ?: '') . '?text=' . rawurlencode($msg),
+            'enviado'  => $enviados[(int)$pv['id']] ?? null,
+        ];
+    }
+    return $out;
+}
+
+/** Registra que se abrio el chat de WhatsApp con el recordatorio para un proveedor */
+function registrar_recordatorio_chat_proveedor($cot, $provId, $telefono)
+{
+    db_exec("INSERT INTO whatsapp_envios (empresa_id, cotizacion_id, destinatario_tipo, destinatario_id, tipo, telefono, plantilla, estado)
+        VALUES (?, ?, 'proveedor', ?, 'chat', ?, 'chat', 'enviado')
+        ON DUPLICATE KEY UPDATE telefono = VALUES(telefono), estado = 'enviado', intentos = intentos + 1, updated_at = NOW()",
+        [$cot['empresa_id'], $cot['id'], $provId, $telefono ?: '-']);
+}
+
