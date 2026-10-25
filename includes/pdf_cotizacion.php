@@ -411,3 +411,27 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
 
     return $pdf;
 }
+
+/**
+ * Envia el PDF al navegador SIN cache (siempre la version actual de la cotizacion).
+ * FPDF::Output('I') pone sus propios encabezados de cache, por eso se envia a mano.
+ */
+function enviar_pdf_sin_cache($pdf, $nombre, $inline = true)
+{
+    $bin = $pdf->Output('S');
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    $ascii = preg_replace('/[^A-Za-z0-9._-]+/', '_', $nombre);
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . strlen($bin));
+    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    header('X-LiteSpeed-Cache-Control: no-cache');
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+    echo $bin;
+    exit;
+}
+

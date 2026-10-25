@@ -279,7 +279,7 @@ function token_publico_cotizacion($cotId)
 
 function enlace_publico_cotizacion($cotId)
 {
-    return url_base() . '/c.php?t=' . token_publico_cotizacion($cotId);
+    return url_base() . '/c.php?t=' . token_publico_cotizacion($cotId) . '&v=' . substr(huella_cotizacion($cotId), 0, 6);
 }
 
 /** Huella del contenido de una cotizacion (cliente, fechas, lugar, notas, total y lineas) para detectar cambios */
