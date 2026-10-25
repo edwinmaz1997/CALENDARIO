@@ -46,17 +46,14 @@ CREATE TABLE IF NOT EXISTS proveedor_pagos (
   CONSTRAINT fk_prov_pagos_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE productos
-  ADD COLUMN proveedor_id INT UNSIGNED NULL AFTER empresa_id,
-  ADD KEY idx_productos_proveedor (proveedor_id),
-  ADD CONSTRAINT fk_productos_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL;
+ALTER TABLE productos ADD COLUMN proveedor_id INT UNSIGNED NULL AFTER empresa_id;
+ALTER TABLE productos ADD KEY idx_productos_proveedor (proveedor_id);
+ALTER TABLE productos ADD CONSTRAINT fk_productos_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL;
 
-ALTER TABLE cotizacion_detalle
-  ADD COLUMN proveedor_id    INT UNSIGNED NULL AFTER producto_id,
-  ADD COLUMN comision_pct    DECIMAL(5,2) NULL AFTER subtotal,
-  ADD COLUMN costo_proveedor DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER comision_pct,
-  ADD KEY idx_detalle_proveedor (proveedor_id),
-  ADD CONSTRAINT fk_detalle_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL;
+ALTER TABLE cotizacion_detalle ADD COLUMN proveedor_id INT UNSIGNED NULL AFTER producto_id;
+ALTER TABLE cotizacion_detalle ADD COLUMN comision_pct DECIMAL(5,2) NULL AFTER subtotal;
+ALTER TABLE cotizacion_detalle ADD COLUMN costo_proveedor DECIMAL(12,2) NOT NULL DEFAULT 0.00 AFTER comision_pct;
+ALTER TABLE cotizacion_detalle ADD KEY idx_detalle_proveedor (proveedor_id);
+ALTER TABLE cotizacion_detalle ADD CONSTRAINT fk_detalle_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL;
 
-ALTER TABLE cotizaciones
-  ADD COLUMN enviada_at DATETIME NULL AFTER estado;
+ALTER TABLE cotizaciones ADD COLUMN enviada_at DATETIME NULL AFTER estado;

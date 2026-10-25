@@ -58,7 +58,9 @@ wget -q -O /dev/null "https://tudominio.com/cron_recordatorios.php?token=TU_CRON
 
 ### Actualizar una instalacion existente
 
-Ejecuta en phpMyAdmin los archivos de `sql/migraciones/` que aun no hayas aplicado, en orden.
+No hace falta correr SQL a mano: al abrir el sistema se aplican solas las migraciones de `sql/migraciones/` que falten
+(se registran en la tabla `schema_migraciones`). Si alguna ya se habia corrido en phpMyAdmin, se detecta y se marca como aplicada.
+Los errores del sistema se guardan en `uploads/.errores.log`.
 
 No se necesita Composer ni terminal: FPDF, PHPMailer, FullCalendar, Lucide y el CSS compilado ya vienen incluidos.
 
