@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+require __DIR__ . '/includes/proveedores.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -11,6 +12,8 @@ $finMes = date('Y-m-t');
 
 $stats = db_one("SELECT
         SUM(estado = 'pendiente') AS pendientes,
+        SUM(estado = 'pendiente' AND enviada_at IS NOT NULL) AS enviadas,
+        SUM(estado = 'pendiente' AND enviada_at IS NULL) AS por_enviar,
         COALESCE(SUM(CASE WHEN estado = 'pendiente' THEN total END), 0) AS monto_pendiente,
         SUM(estado = 'aceptada' AND fecha_evento BETWEEN ? AND ?) AS eventos_mes,
         COALESCE(SUM(CASE WHEN estado = 'aceptada' AND fecha_evento BETWEEN ? AND ? THEN total END), 0) AS monto_mes,
@@ -22,16 +25,25 @@ $cobro = db_one("SELECT COALESCE(SUM(c.total - COALESCE(p.pagado, 0)), 0) AS por
     LEFT JOIN (SELECT cotizacion_id, SUM(monto) AS pagado FROM cotizacion_pagos GROUP BY cotizacion_id) p ON p.cotizacion_id = c.id
     WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.total - COALESCE(p.pagado, 0) > 0", [$eid]);
 
+$deudaProv = 0;
+$provConDeuda = 0;
+foreach (proveedores_con_saldo($eid) as $pv) {
+    if ($pv['saldo'] > 0.004) {
+        $deudaProv += (float)$pv['saldo'];
+        $provConDeuda++;
+    }
+}
+
 $proximos = db_all("SELECT c.id, c.correlativo, c.fecha_evento, c.hora_evento, c.lugar_evento, c.total, cl.nombre AS cliente,
         (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado
     FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE c.empresa_id = ? AND c.estado = 'aceptada' AND c.fecha_evento >= ?
     ORDER BY c.fecha_evento, c.hora_evento LIMIT 6", [$eid, $hoy]);
 
-$pendientes = db_all("SELECT c.id, c.correlativo, c.fecha, c.fecha_evento, c.total, cl.nombre AS cliente
+$pendientes = db_all("SELECT c.id, c.correlativo, c.fecha, c.fecha_evento, c.total, c.enviada_at, cl.nombre AS cliente
     FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE c.empresa_id = ? AND c.estado = 'pendiente'
-    ORDER BY c.fecha_evento LIMIT 6", [$eid]);
+    ORDER BY c.enviada_at IS NOT NULL, c.fecha_evento LIMIT 6", [$eid]);
 
 $fechaInicial = valid_date(input('fecha')) ? input('fecha') : null;
 
@@ -43,13 +55,15 @@ $accionesHeader = '<a href="cotizacion_form.php" class="btn btn-primario btn-sm"
 require __DIR__ . '/includes/header.php';
 ?>
 <!-- Indicadores -->
-<div class="mb-5 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+<div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 2xl:grid-cols-6">
   <?php
   $tarjetas = [
-      ['Pendientes', (int)$stats['pendientes'], money($stats['monto_pendiente'], $emp['moneda']) . ' por confirmar', 'clock', 'bg-amber-100 text-amber-700', 'cotizaciones.php?estado=pendiente'],
+      ['Pendientes', (int)$stats['pendientes'], (int)$stats['enviadas'] . ' ya enviadas al cliente', 'clock', 'bg-amber-100 text-amber-700', 'cotizaciones.php?estado=pendiente'],
+      ['Por enviar', (int)$stats['por_enviar'], 'Pendientes sin enviar', 'send', 'bg-orange-100 text-orange-700', 'cotizaciones.php?estado=por_enviar'],
       ['Eventos este mes', (int)$stats['eventos_mes'], 'Cotizaciones aceptadas', 'calendar-check', 'bg-emerald-100 text-emerald-700', 'cotizaciones.php?estado=aceptada&desde=' . $iniMes . '&hasta=' . $finMes],
       ['Vendido este mes', money($stats['monto_mes'], $emp['moneda']), 'Segun fecha de evento', 'trending-up', 'bg-sky-100 text-sky-700', null],
       ['Por cobrar', money($cobro['por_cobrar'], $emp['moneda']), (int)$cobro['n'] . ' aceptadas con saldo', 'wallet', 'bg-rose-100 text-rose-700', 'cotizaciones.php?estado=aceptada'],
+      ['Debo a proveedores', money($deudaProv, $emp['moneda']), $provConDeuda . ' proveedor(es) con saldo', 'truck', 'bg-slate-200 text-slate-700', 'proveedores.php'],
   ];
   foreach ($tarjetas as $t): $tag = $t[5] ? 'a' : 'div'; ?>
     <<?= $tag ?> <?= $t[5] ? 'href="' . e($t[5]) . '"' : '' ?> class="card flex flex-col gap-3 p-4 transition sm:p-5 <?= $t[5] ? 'hover:shadow-md' : '' ?>">
@@ -125,7 +139,10 @@ require __DIR__ . '/includes/header.php';
                     <?= e(numero_cotizacion($p, $emp)) ?> · Evento <?= e(fecha($p['fecha_evento'])) ?><?= $vencida ? ' (ya paso)' : '' ?>
                   </p>
                 </div>
-                <p class="shrink-0 text-sm font-bold text-slate-700"><?= e(money($p['total'], $emp['moneda'])) ?></p>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-bold text-slate-700"><?= e(money($p['total'], $emp['moneda'])) ?></p>
+                  <p class="text-xs font-semibold <?= $p['enviada_at'] ? 'text-sky-600' : 'text-orange-600' ?>"><?= $p['enviada_at'] ? 'Enviada' : 'Por enviar' ?></p>
+                </div>
               </a>
             </li>
           <?php endforeach; ?>

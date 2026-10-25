@@ -107,14 +107,29 @@
   var cont = $('#lineas'), tpl = $('#tpl-linea'), vacio = $('#lineas-vacio');
 
   function recalcular() {
-    var total = 0, filas = cont.querySelectorAll('.linea-item');
+    var total = 0, costo = 0, filas = cont.querySelectorAll('.linea-item');
     Array.prototype.forEach.call(filas, function (f) {
       var sub = Math.round(num($('[data-cant]', f).value) * num($('[data-precio]', f).value) * 100) / 100;
       $('[data-sub]', f).textContent = fmt(sub);
       total += sub;
+      var pv = provPorId[+f.querySelector('[name="proveedor_id[]"]').value];
+      if (pv) costo += Math.round(sub * (1 - pv.pct / 100) * 100) / 100;
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-total]'), function (el) { el.textContent = D.moneda + ' ' + fmt(total); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-costos]'), function (el) {
+      el.classList.toggle('hidden', costo <= 0);
+      $('[data-costo]', el).textContent = D.moneda + ' ' + fmt(costo);
+      $('[data-ganancia]', el).textContent = D.moneda + ' ' + fmt(total - costo);
+    });
     vacio.classList.toggle('hidden', filas.length > 0);
+  }
+
+  var provs = D.proveedores || [], provPorId = {};
+  provs.forEach(function (p) { provPorId[p.id] = p; });
+  function opcionesProv(sel) {
+    var h = '<option value="">Propio</option>';
+    provs.forEach(function (p) { h += '<option value="' + p.id + '"' + (p.id === sel ? ' selected' : '') + '>' + esc(p.nombre) + ' (' + p.pct + '%)</option>'; });
+    return h;
   }
 
   function agregarLinea(l, enfocar) {
@@ -125,12 +140,21 @@
     $('[data-cant]', f).value = l.cantidad != null ? l.cantidad : 1;
     $('[data-precio]', f).value = (l.precio != null ? num(l.precio) : 0).toFixed(2);
     $('[data-meta]', f).textContent = l.producto_id ? ('Producto del catalogo' + (l.unidad ? ' · ' + l.unidad : '')) : 'Linea libre';
+    var provSel = l.proveedor_id && provPorId[l.proveedor_id] ? l.proveedor_id : null;
+    f.querySelector('[name="proveedor_id[]"]').value = provSel || '';
+    var sp = $('[data-prov]', f);
+    if (provs.length) { sp.innerHTML = opcionesProv(provSel); sp.classList.remove('hidden'); }
     cont.appendChild(frag);
     iconos(); recalcular();
     if (enfocar) { var el = enfocar === 'desc' ? $('[data-desc]', f) : $('[data-cant]', f); el.focus(); el.select(); }
   }
 
   cont.addEventListener('input', function (ev) { if (ev.target.matches('[data-cant],[data-precio]')) recalcular(); });
+  cont.addEventListener('change', function (ev) {
+    if (!ev.target.matches('[data-prov]')) return;
+    ev.target.closest('.linea-item').querySelector('[name="proveedor_id[]"]').value = ev.target.value;
+    recalcular();
+  });
   cont.addEventListener('focusout', function (ev) {
     if (ev.target.matches('[data-precio]')) ev.target.value = num(ev.target.value).toFixed(2);
   });
@@ -159,7 +183,7 @@
         var c = $('[data-cant]', existente); c.value = num(c.value) + 1; recalcular();
         existente.classList.add('bg-amber-50'); setTimeout(function () { existente.classList.remove('bg-amber-50'); }, 600);
       } else {
-        agregarLinea({ producto_id: p.id, descripcion: p.nombre, unidad: p.unidad, cantidad: 1, precio: p.precio }, 'cant');
+        agregarLinea({ producto_id: p.id, proveedor_id: p.proveedor_id, descripcion: p.nombre, unidad: p.unidad, cantidad: 1, precio: p.precio }, 'cant');
       }
       inProd.value = '';
     });

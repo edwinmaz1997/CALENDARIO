@@ -141,3 +141,13 @@ html.visor-activo, html.visor-activo body { overflow: hidden; }
 .visor-imagen.ampliada img { max-width: none; }
 .visor-paginas.ampliada { align-items: flex-start; }
 .visor-paginas.ampliada .visor-pagina { max-width: none; }
+
+/* ===== Impresion (reportes) ===== */
+@media print {
+  #menu, #menu-fondo, header .btn, header button, .no-print, footer, .flash { display: none !important; }
+  .lg\:pl-72 { padding-left: 0 !important; }
+  body { background: #fff !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+  header { position: static !important; border: 0 !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+}

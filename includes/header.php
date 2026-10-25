@@ -19,6 +19,8 @@ if ($_emp) {
     $_menu[] = ['cotizaciones', 'cotizaciones.php', 'file-text', 'Cotizaciones'];
     $_menu[] = ['clientes', 'clientes.php', 'users', 'Clientes'];
     $_menu[] = ['productos', 'productos.php', 'package', 'Productos'];
+    $_menu[] = ['proveedores', 'proveedores.php', 'truck', 'Proveedores'];
+    $_menu[] = ['reportes', 'reportes.php', 'bar-chart-3', 'Reportes'];
     $_menu[] = ['mi_empresa', 'mi_empresa.php', 'building-2', 'Mi empresa'];
 }
 $_menuAdmin = [];

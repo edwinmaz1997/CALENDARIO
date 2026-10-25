@@ -70,11 +70,32 @@ CREATE TABLE IF NOT EXISTS clientes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
+-- Proveedores (por empresa). La comision es el % que se queda la empresa
+-- sobre el precio de venta: precio 5000 con 10% => se paga 4500 al proveedor.
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS proveedores (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  empresa_id    INT UNSIGNED NOT NULL,
+  nombre        VARCHAR(150) NOT NULL,
+  contacto      VARCHAR(150) NULL,
+  telefono      VARCHAR(50)  NULL,
+  correo        VARCHAR(150) NULL,
+  comision_pct  DECIMAL(5,2) NOT NULL DEFAULT 10.00,
+  notas         TEXT         NULL,
+  activo        TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_proveedores_empresa (empresa_id, nombre),
+  CONSTRAINT fk_proveedores_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
 -- Productos (catalogo por empresa)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   empresa_id  INT UNSIGNED NOT NULL,
+  proveedor_id INT UNSIGNED NULL,
   codigo      VARCHAR(50)  NULL,
   nombre      VARCHAR(150) NOT NULL,
   descripcion TEXT         NULL,
@@ -84,7 +105,9 @@ CREATE TABLE IF NOT EXISTS productos (
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_productos_empresa (empresa_id, nombre),
-  CONSTRAINT fk_productos_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE
+  KEY idx_productos_proveedor (proveedor_id),
+  CONSTRAINT fk_productos_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE,
+  CONSTRAINT fk_productos_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
@@ -102,6 +125,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   hora_evento      TIME         NULL,
   lugar_evento     VARCHAR(255) NULL,
   estado           ENUM('pendiente','aceptada','rechazada') NOT NULL DEFAULT 'pendiente',
+  enviada_at       DATETIME     NULL,
   notas            TEXT         NULL,
   imagen           VARCHAR(255) NULL,
   total            DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -124,16 +148,21 @@ CREATE TABLE IF NOT EXISTS cotizacion_detalle (
   id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
   cotizacion_id   INT UNSIGNED NOT NULL,
   producto_id     INT UNSIGNED NULL,
+  proveedor_id    INT UNSIGNED NULL,
   descripcion     VARCHAR(255) NOT NULL,
   unidad          VARCHAR(30)  NULL,
   cantidad        DECIMAL(12,2) NOT NULL DEFAULT 1.00,
   precio_unitario DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   subtotal        DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  comision_pct    DECIMAL(5,2) NULL,
+  costo_proveedor DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   orden           SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
   KEY idx_detalle_cotizacion (cotizacion_id),
+  KEY idx_detalle_proveedor (proveedor_id),
   CONSTRAINT fk_detalle_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE CASCADE,
-  CONSTRAINT fk_detalle_producto FOREIGN KEY (producto_id) REFERENCES productos (id) ON DELETE SET NULL
+  CONSTRAINT fk_detalle_producto FOREIGN KEY (producto_id) REFERENCES productos (id) ON DELETE SET NULL,
+  CONSTRAINT fk_detalle_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
@@ -173,6 +202,29 @@ CREATE TABLE IF NOT EXISTS cotizacion_pagos (
   CONSTRAINT fk_pagos_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE CASCADE,
   CONSTRAINT fk_pagos_adjunto FOREIGN KEY (adjunto_id) REFERENCES cotizacion_adjuntos (id) ON DELETE SET NULL,
   CONSTRAINT fk_pagos_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Abonos/pagos hechos a proveedores (opcionalmente ligados a un evento)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS proveedor_pagos (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  empresa_id    INT UNSIGNED NOT NULL,
+  proveedor_id  INT UNSIGNED NOT NULL,
+  cotizacion_id INT UNSIGNED NULL,
+  fecha         DATE         NOT NULL,
+  descripcion   VARCHAR(150) NOT NULL,
+  metodo        VARCHAR(30)  NULL,
+  monto         DECIMAL(12,2) NOT NULL,
+  usuario_id    INT UNSIGNED NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_prov_pagos (empresa_id, proveedor_id, fecha),
+  KEY idx_prov_pagos_cot (cotizacion_id),
+  CONSTRAINT fk_prov_pagos_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE,
+  CONSTRAINT fk_prov_pagos_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE CASCADE,
+  CONSTRAINT fk_prov_pagos_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE SET NULL,
+  CONSTRAINT fk_prov_pagos_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

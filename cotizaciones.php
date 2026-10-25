@@ -12,7 +12,11 @@ $hasta = input('hasta');
 
 $where = 'c.empresa_id = ?';
 $params = [$eid];
-if (isset(estados()[$estado])) {
+if ($estado === 'por_enviar') {
+    $where .= " AND c.estado = 'pendiente' AND c.enviada_at IS NULL";
+} elseif ($estado === 'enviadas') {
+    $where .= " AND c.estado = 'pendiente' AND c.enviada_at IS NOT NULL";
+} elseif (isset(estados()[$estado])) {
     $where .= ' AND c.estado = ?';
     $params[] = $estado;
 } else {
@@ -44,10 +48,13 @@ $pag = paginar((int)db_val("SELECT COUNT(*) FROM cotizaciones c JOIN clientes cl
 $cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos, (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE $where ORDER BY c.id DESC LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
 
-$conteos = [];
-foreach (db_all('SELECT estado, COUNT(*) n FROM cotizaciones WHERE empresa_id = ? GROUP BY estado', [$eid]) as $r) {
-    $conteos[$r['estado']] = (int)$r['n'];
-}
+$conteos = array_map('intval', db_one("SELECT
+        COALESCE(SUM(estado = 'pendiente'), 0) AS pendiente,
+        COALESCE(SUM(estado = 'pendiente' AND enviada_at IS NULL), 0) AS por_enviar,
+        COALESCE(SUM(estado = 'pendiente' AND enviada_at IS NOT NULL), 0) AS enviadas,
+        COALESCE(SUM(estado = 'aceptada'), 0) AS aceptada,
+        COALESCE(SUM(estado = 'rechazada'), 0) AS rechazada
+    FROM cotizaciones WHERE empresa_id = ?", [$eid]));
 
 $titulo = 'Cotizaciones';
 $activo = 'cotizaciones';
@@ -58,10 +65,12 @@ require __DIR__ . '/includes/header.php';
 <div class="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
   <div class="inline-flex gap-1 rounded-xl bg-slate-200/60 p-1">
     <?php
-    $tabs = ['' => ['Todas', array_sum($conteos)]];
-    foreach (estados() as $k => $v) {
-        $tabs[$k] = [$v[0] . 's', $conteos[$k] ?? 0];
-    }
+    $tabs = ['' => ['Todas', $conteos['pendiente'] + $conteos['aceptada'] + $conteos['rechazada']]];
+    $tabs['pendiente'] = ['Pendientes', $conteos['pendiente']];
+    $tabs['por_enviar'] = ['Por enviar', $conteos['por_enviar']];
+    $tabs['enviadas'] = ['Enviadas', $conteos['enviadas']];
+    $tabs['aceptada'] = ['Aceptadas', $conteos['aceptada']];
+    $tabs['rechazada'] = ['Rechazadas', $conteos['rechazada']];
     foreach ($tabs as $k => $t): $on = $estado === $k; ?>
       <a href="<?= e(url_con(['estado' => $k, 'p' => null])) ?>" class="whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition <?= $on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900' ?>">
         <?= e($t[0]) ?> <span class="ml-1 rounded-full px-1.5 text-xs <?= $on ? 'bg-slate-100' : 'bg-white/60' ?>"><?= (int)$t[1] ?></span>
@@ -111,7 +120,12 @@ require __DIR__ . '/includes/header.php';
             <span class="block text-xs font-semibold <?= $saldoC > 0 ? 'text-rose-600' : 'text-emerald-600' ?>"><?= $saldoC > 0 ? 'Pendiente ' . e(money($saldoC, $emp['moneda'])) : 'Pagada' ?></span>
           <?php endif; ?>
         </td>
-        <td data-label="Estado"><?= badge_estado($c['estado']) ?></td>
+        <td data-label="Estado">
+          <?= badge_estado($c['estado']) ?>
+          <?php if ($c['estado'] === 'pendiente'): ?>
+            <?= $c['enviada_at'] ? '<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>' : '<span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Por enviar</span>' ?>
+          <?php endif; ?>
+        </td>
         <td class="td-acciones">
           <div class="flex justify-end gap-1.5">
             <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>" class="btn btn-claro btn-sm btn-icono" title="Ver"><i data-lucide="eye"></i></a>

@@ -2,6 +2,7 @@
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/adjuntos.php';
 require __DIR__ . '/includes/imagen_cotizacion.php';
+require __DIR__ . '/includes/proveedores.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -21,7 +22,7 @@ if ($id) {
         flash('aviso', 'Solo se pueden editar cotizaciones pendientes. Regresala a pendiente para modificarla.');
         redirect('cotizacion_ver.php?id=' . $id);
     }
-    $lineas = db_all('SELECT producto_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
+    $lineas = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
 } else {
     $cot = [
         'id' => 0, 'cliente_id' => input_int('cliente_id') ?: null, 'fecha' => date('Y-m-d'),
@@ -47,6 +48,7 @@ if (is_post()) {
     // Lineas
     $lineas = [];
     $pids = $_POST['producto_id'] ?? [];
+    $provIds = $_POST['proveedor_id'] ?? [];
     $descs = $_POST['descripcion'] ?? [];
     $unis = $_POST['unidad'] ?? [];
     $cants = $_POST['cantidad'] ?? [];
@@ -70,6 +72,7 @@ if (is_post()) {
         }
         $lineas[] = [
             'producto_id'     => (int)($pids[$i] ?? 0) ?: null,
+            'proveedor_id'    => (int)($provIds[$i] ?? 0) ?: null,
             'descripcion'     => mb_substr($d, 0, 255),
             'unidad'          => mb_substr(trim((string)($unis[$i] ?? '')), 0, 30),
             'cantidad'        => is_numeric($c) ? round((float)$c, 2) : 0,
@@ -105,6 +108,18 @@ if (is_post()) {
         unset($l);
     }
 
+    // Proveedores validos de esta empresa y su comision actual
+    $comisiones = [];
+    foreach (db_all('SELECT id, comision_pct FROM proveedores WHERE empresa_id = ?', [$eid]) as $pv) {
+        $comisiones[(int)$pv['id']] = (float)$pv['comision_pct'];
+    }
+    foreach ($lineas as &$l) {
+        if ($l['proveedor_id'] && !isset($comisiones[$l['proveedor_id']])) {
+            $l['proveedor_id'] = null;
+        }
+    }
+    unset($l);
+
     if (!$errores) {
         $total = 0;
         foreach ($lineas as $l) {
@@ -128,9 +143,12 @@ if (is_post()) {
                 ]);
                 $id = (int)$pdo->lastInsertId();
             }
-            $st = $pdo->prepare('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, descripcion, unidad, cantidad, precio_unitario, subtotal, orden) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            $st = $pdo->prepare('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             foreach ($lineas as $i => $l) {
-                $st->execute([$id, $l['producto_id'], $l['descripcion'], nullable($l['unidad']), $l['cantidad'], $l['precio_unitario'], round($l['cantidad'] * $l['precio_unitario'], 2), $i + 1]);
+                $sub = round($l['cantidad'] * $l['precio_unitario'], 2);
+                $pct = $l['proveedor_id'] ? $comisiones[$l['proveedor_id']] : null;
+                $costo = $l['proveedor_id'] ? costo_proveedor($sub, $pct) : 0;
+                $st->execute([$id, $l['producto_id'], $l['proveedor_id'], $l['descripcion'], nullable($l['unidad']), $l['cantidad'], $l['precio_unitario'], $sub, $pct, $costo, $i + 1]);
             }
             $pdo->commit();
             flash('ok', $cot['id'] ? 'Cotizacion actualizada.' : 'Cotizacion creada como pendiente.');
@@ -176,15 +194,18 @@ if (is_post()) {
 /* ---------- Datos para el formulario ---------- */
 $adjuntosExistentes = $cot['id'] ? db_all('SELECT id, titulo, nombre_original, mime FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY id', [$cot['id']]) : [];
 $clientes = db_all('SELECT id, nombre, nit, telefono FROM clientes WHERE empresa_id = ? AND (activo = 1 OR id = ?) ORDER BY nombre', [$eid, (int)$cot['cliente_id']]);
-$productos = db_all('SELECT id, codigo, nombre, descripcion, unidad, precio FROM productos WHERE empresa_id = ? AND activo = 1 ORDER BY nombre', [$eid]);
+$proveedoresJs = array_map(function ($pv) { return ['id' => (int)$pv['id'], 'nombre' => $pv['nombre'], 'pct' => (float)$pv['comision_pct']]; }, proveedores_activos($eid));
+$productos = db_all('SELECT id, proveedor_id, codigo, nombre, descripcion, unidad, precio FROM productos WHERE empresa_id = ? AND activo = 1 ORDER BY nombre', [$eid]);
 foreach ($productos as &$p) {
     $p['id'] = (int)$p['id'];
     $p['precio'] = (float)$p['precio'];
+    $p['proveedor_id'] = $p['proveedor_id'] ? (int)$p['proveedor_id'] : null;
 }
 unset($p);
 $lineasJs = array_map(function ($l) {
     return [
         'producto_id' => $l['producto_id'] ? (int)$l['producto_id'] : null,
+        'proveedor_id' => !empty($l['proveedor_id']) ? (int)$l['proveedor_id'] : null,
         'descripcion' => $l['descripcion'],
         'unidad'      => $l['unidad'],
         'cantidad'    => (float)$l['cantidad'],
@@ -339,6 +360,11 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         <span class="text-sm font-semibold opacity-90">Total</span>
         <span class="text-2xl font-extrabold" data-total>Q 0.00</span>
       </div>
+      <div class="hidden border-b border-slate-100 px-6 py-3 text-xs text-slate-600" data-costos>
+        <div class="flex justify-between"><span>Pagas a proveedores</span><strong data-costo>Q 0.00</strong></div>
+        <div class="flex justify-between"><span>Tu ganancia</span><strong class="text-emerald-600" data-ganancia>Q 0.00</strong></div>
+        <p class="mt-1 text-[11px] text-slate-400">Solo tu lo ves; no aparece en el PDF.</p>
+      </div>
       <div class="flex gap-3 p-4">
         <a href="<?= $cot['id'] ? 'cotizacion_ver.php?id=' . (int)$cot['id'] : 'cotizaciones.php' ?>" class="btn btn-claro flex-1">Cancelar</a>
         <button type="submit" class="btn btn-primario flex-1"><i data-lucide="save"></i>Guardar</button>
@@ -371,10 +397,14 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 <template id="tpl-linea">
   <div class="linea-item grid grid-cols-12 items-start gap-x-3 gap-y-2 py-3">
     <input type="hidden" name="producto_id[]">
+    <input type="hidden" name="proveedor_id[]">
     <input type="hidden" name="unidad[]">
     <div class="order-1 col-span-10 md:col-span-5">
       <input class="input" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
-      <p class="mt-1 text-xs text-slate-400" data-meta></p>
+      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p class="text-xs text-slate-400" data-meta></p>
+        <select class="linea-prov hidden rounded-md border border-slate-200 bg-white py-0.5 pl-1.5 pr-6 text-xs text-slate-600" data-prov aria-label="Proveedor"></select>
+      </div>
     </div>
     <div class="order-2 col-span-2 flex justify-end md:order-5 md:col-span-1">
       <button type="button" class="rounded-lg p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-quitar aria-label="Quitar linea"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
@@ -423,6 +453,7 @@ $extraScripts = '<script>window.COT = ' . json_encode([
     'clientes'  => array_map(function ($c) { return ['id' => (int)$c['id'], 'nombre' => $c['nombre'], 'nit' => $c['nit'], 'telefono' => $c['telefono']]; }, $clientes),
     'productos' => $productos,
     'lineas'    => $lineasJs,
+    'proveedores' => $proveedoresJs,
     'clienteId' => (int)$cot['cliente_id'] ?: null,
 ], $jsonFlags) . ';</script><script src="assets/js/cotizacion.js?v=' . ASSET_V . '"></script>';
 require __DIR__ . '/includes/footer.php';

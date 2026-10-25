@@ -3,6 +3,7 @@ require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/adjuntos.php';
 require __DIR__ . '/includes/pagos.php';
 require __DIR__ . '/includes/imagen_cotizacion.php';
+require __DIR__ . '/includes/proveedores.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -50,8 +51,8 @@ if (is_post()) {
             db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado)
                      SELECT empresa_id, ?, cliente_id, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
             $nuevo = (int)$pdo->lastInsertId();
-            db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, descripcion, unidad, cantidad, precio_unitario, subtotal, orden)
-                     SELECT ?, producto_id, descripcion, unidad, cantidad, precio_unitario, subtotal, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
+            db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden)
+                     SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
             $pdo->commit();
             $origen = imagen_cot_path($eid, $cot['imagen']);
             if ($origen) {
@@ -79,6 +80,12 @@ if (is_post()) {
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
         }
+    } elseif ($accion === 'enviada') {
+        db_exec('UPDATE cotizaciones SET enviada_at = NOW() WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        flash('ok', 'Cotizacion marcada como enviada al cliente.');
+    } elseif ($accion === 'no_enviada') {
+        db_exec('UPDATE cotizaciones SET enviada_at = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        flash('ok', 'Se quito la marca de enviada.');
     } elseif ($accion === 'imagen') {
         if (input('hacer') === 'quitar') {
             borrar_imagen_cot($eid, $cot['imagen']);
@@ -178,6 +185,11 @@ $numero = numero_cotizacion($cot, $emp);
 $logo = logo_url($emp);
 $pagos = db_all('SELECT p.*, a.mime AS adj_mime FROM cotizacion_pagos p LEFT JOIN cotizacion_adjuntos a ON a.id = p.adjunto_id WHERE p.cotizacion_id = ? ORDER BY p.fecha, p.id', [$id]);
 $pagosRes = resumen_pagos($cot);
+$provRes = resumen_proveedores_cotizacion($id);
+$telWa = preg_replace('/\D/', '', (string)($cliente['telefono'] ?? ''));
+if (strlen($telWa) === 8) {
+    $telWa = '502' . $telWa; // Guatemala
+}
 $errorPago = !empty($_SESSION['error_pago']);
 unset($_SESSION['error_pago']);
 $adjuntos = db_all('SELECT * FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY created_at DESC, id DESC', [$id]);
@@ -459,6 +471,57 @@ require __DIR__ . '/includes/header.php';
       </div>
       <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: <?= (int)$pagosRes['porcentaje'] ?>%"></div></div>
     </a>
+
+    <!-- Envio al cliente -->
+    <div class="card p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="text-sm font-bold text-slate-900">Envio al cliente</h3>
+        <?php if ($cot['enviada_at']): ?>
+          <span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>
+        <?php else: ?>
+          <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Por enviar</span>
+        <?php endif; ?>
+      </div>
+      <?php if ($cot['enviada_at']): ?>
+        <p class="mt-2 text-sm text-slate-600">Enviada el <?= e(fecha($cot['enviada_at'], true)) ?>.</p>
+        <form method="post" class="mt-2"><?= csrf_field() ?><input type="hidden" name="accion" value="no_enviada">
+          <button class="text-xs font-semibold text-slate-500 hover:underline">Desmarcar</button>
+        </form>
+      <?php else: ?>
+        <form method="post" class="mt-3"><?= csrf_field() ?><input type="hidden" name="accion" value="enviada">
+          <button class="btn btn-primario w-full"><i data-lucide="send"></i>Marcar como enviada</button>
+        </form>
+      <?php endif; ?>
+      <?php if ($telWa): ?>
+        <a href="https://wa.me/<?= e($telWa) ?>?text=<?= rawurlencode('Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.') ?>" target="_blank" rel="noopener" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:underline"><i data-lucide="message-circle" class="h-4 w-4"></i>Abrir chat de WhatsApp con <?= e($cliente['telefono']) ?></a>
+      <?php endif; ?>
+    </div>
+
+    <?php if ($provRes['filas']): ?>
+    <!-- Proveedores del evento (interno) -->
+    <div class="card p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h3 class="text-sm font-bold text-slate-900">Proveedores y ganancia</h3>
+        <span class="text-[11px] text-slate-400">No sale en el PDF</span>
+      </div>
+      <ul class="mt-3 space-y-2 text-sm">
+        <?php foreach ($provRes['filas'] as $pf): ?>
+          <li class="flex items-start justify-between gap-2">
+            <a href="proveedor_ver.php?id=<?= (int)$pf['proveedor_id'] ?>&cotizacion_id=<?= (int)$id ?>#abono" class="min-w-0 truncate text-slate-700 hover:underline"><?= e($pf['nombre']) ?></a>
+            <span class="shrink-0 text-right text-xs">
+              <span class="font-semibold text-slate-900">Pagar <?= e(money($pf['costo'], $emp['moneda'])) ?></span><br>
+              <span class="<?= $pf['pagado'] >= $pf['costo'] ? 'text-emerald-600' : 'text-slate-500' ?>">abonado <?= e(money($pf['pagado'], $emp['moneda'])) ?></span>
+            </span>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+      <div class="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Costo proveedores</span><span class="font-semibold"><?= e(money($provRes['costo'], $emp['moneda'])) ?></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Tu ganancia</span><span class="font-extrabold text-emerald-600"><?= e(money($cot['total'] - $provRes['costo'], $emp['moneda'])) ?></span></div>
+      </div>
+      <?php if ($cot['estado'] !== 'aceptada'): ?><p class="mt-2 text-[11px] text-amber-700">El adeudo con los proveedores se genera al aceptar la cotizacion.</p><?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <div class="card p-5">
       <h3 class="mb-3 text-sm font-bold text-slate-900">Estado de la cotizacion</h3>

@@ -17,6 +17,7 @@
   // Confirmaciones en formularios / botones
   document.addEventListener('submit', function (ev) {
     var f = ev.target;
+    if (ev.defaultPrevented) return;
     var msg = f.getAttribute('data-confirmar');
     if (msg && !window.confirm(msg)) { ev.preventDefault(); return; }
     var btn = f.querySelector('[type=submit]');

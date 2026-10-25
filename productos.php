@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+require __DIR__ . '/includes/proveedores.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -20,7 +21,11 @@ if (is_post()) {
             'unidad'      => input('unidad', 'Unidad'),
             'precio'      => str_replace(',', '', input('precio', '0')),
             'activo'      => isset($_POST['activo']) ? 1 : 0,
+            'proveedor_id' => input_int('proveedor_id') ?: null,
         ];
+        if ($p['proveedor_id'] && !db_val('SELECT id FROM proveedores WHERE id = ? AND empresa_id = ?', [$p['proveedor_id'], $eid])) {
+            $p['proveedor_id'] = null;
+        }
         if ($id && !db_val('SELECT id FROM productos WHERE id = ? AND empresa_id = ?', [$id, $eid])) {
             flash('error', 'Producto no encontrado.');
             redirect('productos.php');
@@ -38,15 +43,15 @@ if (is_post()) {
             $errores[] = 'Ya existe otro producto con ese codigo.';
         }
         if (!$errores) {
-            $vals = [nullable($p['codigo']), $p['nombre'], nullable($p['descripcion']), mb_substr($p['unidad'], 0, 30), round((float)$p['precio'], 2), $p['activo']];
+            $vals = [nullable($p['codigo']), $p['nombre'], nullable($p['descripcion']), mb_substr($p['unidad'], 0, 30), round((float)$p['precio'], 2), $p['activo'], $p['proveedor_id']];
             if ($id) {
                 $vals[] = $id;
                 $vals[] = $eid;
-                db_exec('UPDATE productos SET codigo = ?, nombre = ?, descripcion = ?, unidad = ?, precio = ?, activo = ? WHERE id = ? AND empresa_id = ?', $vals);
+                db_exec('UPDATE productos SET codigo = ?, nombre = ?, descripcion = ?, unidad = ?, precio = ?, activo = ?, proveedor_id = ? WHERE id = ? AND empresa_id = ?', $vals);
                 flash('ok', 'Producto actualizado.');
             } else {
                 array_unshift($vals, $eid);
-                db_exec('INSERT INTO productos (empresa_id, codigo, nombre, descripcion, unidad, precio, activo) VALUES (?, ?, ?, ?, ?, ?, ?)', $vals);
+                db_exec('INSERT INTO productos (empresa_id, codigo, nombre, descripcion, unidad, precio, activo, proveedor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', $vals);
                 flash('ok', 'Producto creado.');
             }
             redirect('productos.php');
@@ -73,12 +78,13 @@ if ($accion === 'nuevo' || $accion === 'editar') {
     if (!isset($producto)) {
         $producto = $accion === 'editar'
             ? db_one('SELECT * FROM productos WHERE id = ? AND empresa_id = ?', [$id, $eid])
-            : ['id' => 0, 'codigo' => '', 'nombre' => '', 'descripcion' => '', 'unidad' => 'Unidad', 'precio' => '', 'activo' => 1];
+            : ['id' => 0, 'codigo' => '', 'nombre' => '', 'descripcion' => '', 'unidad' => 'Unidad', 'precio' => '', 'activo' => 1, 'proveedor_id' => input_int('proveedor_id') ?: null];
         if (!$producto) {
             flash('error', 'Producto no encontrado.');
             redirect('productos.php');
         }
     }
+    $provs = proveedores_activos($eid, (int)($producto['proveedor_id'] ?? 0));
     $unidades = db_all('SELECT DISTINCT unidad FROM productos WHERE empresa_id = ? ORDER BY unidad', [$eid]);
     $titulo = $producto['id'] ? 'Editar producto' : 'Nuevo producto';
     $activo = 'productos';
@@ -113,6 +119,16 @@ if ($accion === 'nuevo' || $accion === 'editar') {
           <label class="campo sm:col-span-3"><span>Precio (<?= e($emp['moneda']) ?>) *</span>
             <input class="input text-right" name="precio" value="<?= e($producto['precio'] === '' ? '' : number_format((float)$producto['precio'], 2, '.', '')) ?>" inputmode="decimal" required placeholder="0.00">
           </label>
+          <label class="campo sm:col-span-3"><span>Proveedor</span>
+            <select class="select" name="proveedor_id" id="prov-sel">
+              <option value="" data-pct="">Propio (sin proveedor)</option>
+              <?php foreach ($provs as $pv): ?>
+                <option value="<?= (int)$pv['id'] ?>" data-pct="<?= e($pv['comision_pct']) ?>" <?= (int)($producto['proveedor_id'] ?? 0) === (int)$pv['id'] ? 'selected' : '' ?>><?= e($pv['nombre']) ?> (<?= e(pct_txt($pv['comision_pct'])) ?>)</option>
+              <?php endforeach; ?>
+            </select>
+            <?php if (!$provs): ?><p class="ayuda"><a href="proveedores.php?accion=nuevo" class="font-semibold texto-marca hover:underline">Crear un proveedor</a></p><?php endif; ?>
+          </label>
+          <div class="flex items-end sm:col-span-3"><p id="prov-calc" class="w-full rounded-xl bg-marca-suave px-3 py-2.5 text-sm text-slate-700"></p></div>
           <label class="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-6">
             <input type="checkbox" name="activo" value="1" class="h-4 w-4 rounded" <?= $producto['activo'] ? 'checked' : '' ?>> Disponible para cotizar
           </label>
@@ -123,6 +139,19 @@ if ($accion === 'nuevo' || $accion === 'editar') {
         </div>
       </form>
     </div>
+    <script>
+      (function () {
+        var sel = document.getElementById('prov-sel'), precio = document.querySelector('[name=precio]'), out = document.getElementById('prov-calc'), m = <?= json_encode($emp['moneda']) ?>;
+        function f(n) { return m + ' ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function pintar() {
+          var pct = sel.options[sel.selectedIndex].getAttribute('data-pct');
+          if (pct === '' || pct === null) { out.textContent = 'Producto propio: todo el precio es para ti.'; return; }
+          var v = parseFloat(String(precio.value).replace(/,/g, '')) || 0, costo = Math.round(v * (1 - parseFloat(pct) / 100) * 100) / 100;
+          out.innerHTML = 'Pagas al proveedor <strong>' + f(costo) + '</strong> · tu comision <strong>' + f(v - costo) + '</strong>';
+        }
+        sel.addEventListener('change', pintar); precio.addEventListener('input', pintar); pintar();
+      })();
+    </script>
     <?php
     require __DIR__ . '/includes/footer.php';
     exit;
@@ -144,7 +173,7 @@ if ($q !== '') {
     array_push($params, $like, $like, $like);
 }
 $pag = paginar((int)db_val("SELECT COUNT(*) FROM productos WHERE $where", $params));
-$productos = db_all("SELECT * FROM productos WHERE $where ORDER BY nombre LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
+$productos = db_all("SELECT productos.*, pv.nombre AS proveedor, pv.comision_pct FROM productos LEFT JOIN proveedores pv ON pv.id = productos.proveedor_id WHERE " . str_replace(['empresa_id', 'activo', 'nombre LIKE', 'codigo LIKE', 'descripcion LIKE'], ['productos.empresa_id', 'productos.activo', 'productos.nombre LIKE', 'productos.codigo LIKE', 'productos.descripcion LIKE'], $where) . " ORDER BY productos.nombre LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
 
 $titulo = 'Productos';
 $activo = 'productos';
@@ -174,7 +203,7 @@ require __DIR__ . '/includes/header.php';
     </div>
   <?php else: ?>
   <table class="tabla tabla-movil">
-    <thead><tr><th>Producto</th><th>Codigo</th><th>Unidad</th><th class="text-right">Precio</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr><th>Producto</th><th>Proveedor</th><th>Unidad</th><th class="text-right">Precio</th><th>Estado</th><th></th></tr></thead>
     <tbody>
     <?php foreach ($productos as $p): ?>
       <tr>
@@ -182,7 +211,7 @@ require __DIR__ . '/includes/header.php';
           <p class="font-semibold text-slate-900"><?= e($p['nombre']) ?></p>
           <?php if ($p['descripcion']): ?><p class="line-clamp-1 text-xs text-slate-500"><?= e($p['descripcion']) ?></p><?php endif; ?>
         </td>
-        <td data-label="Codigo"><?= e($p['codigo'] ?: '—') ?></td>
+        <td data-label="Proveedor"><?php if ($p['proveedor']): ?><a href="proveedor_ver.php?id=<?= (int)$p['proveedor_id'] ?>" class="hover:underline"><?= e($p['proveedor']) ?></a> <span class="text-xs text-slate-400"><?= e(pct_txt($p['comision_pct'])) ?></span><?php else: ?><span class="text-slate-400">Propio</span><?php endif; ?></td>
         <td data-label="Unidad"><?= e($p['unidad']) ?></td>
         <td data-label="Precio" class="font-semibold md:text-right"><?= e(money($p['precio'])) ?></td>
         <td data-label="Estado"><?= $p['activo'] ? '<span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Disponible</span>' : '<span class="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">No disponible</span>' ?></td>
