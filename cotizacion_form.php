@@ -431,8 +431,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 </template>
 
 <!-- Modal nuevo producto -->
-<div id="modal-producto" class="fixed inset-0 z-50 hidden items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
-  <form id="form-producto" class="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6" data-sin-bloqueo>
+<div id="modal-producto" class="fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
+  <form id="form-producto" class="w-full max-w-lg my-auto max-h-full overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6" data-sin-bloqueo>
     <div class="mb-4 flex items-center justify-between">
       <h3 class="text-lg font-bold text-slate-900">Nuevo producto</h3>
       <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" data-cerrar-producto aria-label="Cerrar"><i data-lucide="x" class="h-5 w-5"></i></button>
@@ -460,8 +460,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 </div>
 
 <!-- Modal nuevo cliente -->
-<div id="modal-cliente" class="fixed inset-0 z-50 hidden items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4">
-  <form id="form-cliente" class="w-full max-w-lg rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6">
+<div id="modal-cliente" class="fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
+  <form id="form-cliente" class="w-full max-w-lg my-auto max-h-full overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
     <div class="mb-4 flex items-center justify-between">
       <h3 class="text-lg font-bold text-slate-900">Nuevo cliente</h3>
       <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" data-cerrar-modal aria-label="Cerrar"><i data-lucide="x" class="h-5 w-5"></i></button>
