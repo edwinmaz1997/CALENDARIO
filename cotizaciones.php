@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+require __DIR__ . '/includes/portal.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -45,7 +46,7 @@ if ($q !== '') {
 }
 
 $pag = paginar((int)db_val("SELECT COUNT(*) FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id WHERE $where", $params));
-$cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos, (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
+$cots = db_all("SELECT c.*, cl.nombre AS cliente, (SELECT COUNT(*) FROM cotizacion_adjuntos a WHERE a.cotizacion_id = c.id) AS adjuntos, (SELECT COALESCE(SUM(pg.monto), 0) FROM cotizacion_pagos pg WHERE pg.cotizacion_id = c.id) AS pagado, (SELECT COUNT(*) FROM cotizacion_mensajes mm WHERE mm.cotizacion_id = c.id AND mm.autor = 'cliente' AND mm.leido = 0) AS msg_nuevos FROM cotizaciones c JOIN clientes cl ON cl.id = c.cliente_id
     WHERE $where ORDER BY c.id DESC LIMIT {$pag['limite']} OFFSET {$pag['offset']}", $params);
 
 $conteos = array_map('intval', db_one("SELECT
@@ -124,6 +125,8 @@ require __DIR__ . '/includes/header.php';
         </td>
         <td data-label="Estado">
           <?= badge_estado($c['estado']) ?>
+          <?php if ((int)$c['msg_nuevos']): ?><a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>#conversacion" class="ml-1 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white"><i data-lucide="message-circle" class="h-3 w-3"></i><?= (int)$c['msg_nuevos'] ?></a><?php endif; ?>
+          <?= badge_respuesta_cliente($c) ?>
           <?php if ($c['estado'] === 'pendiente'): ?>
             <?= $c['enviada_at'] ? '<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>' : '<span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Por enviar</span>' ?>
           <?php endif; ?>

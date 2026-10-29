@@ -1,4 +1,10 @@
 <?php
+// Enlace corto del cliente: /?c=CODIGO
+if (isset($_GET['c'])) {
+    define('SIN_SESION', true);
+    require __DIR__ . '/portal.php';
+    exit;
+}
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/proveedores.php';
 require_empresa();

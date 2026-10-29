@@ -183,6 +183,11 @@ if (is_post()) {
                 db_exec('UPDATE cotizaciones SET enviada_at = NULL WHERE id = ?', [$id]);
                 $volvioPorEnviar = true;
             }
+            if ($cot['id'] && huella_cotizacion($id) !== $huellaAntes && (db_val('SELECT COUNT(*) FROM cotizacion_mensajes WHERE cotizacion_id = ?', [$id]) || !empty($cot['respuesta_cliente']))) {
+                // Queda registro en la conversacion que el cliente ve en su enlace
+                db_exec('INSERT INTO cotizacion_mensajes (cotizacion_id, empresa_id, autor, mensaje, leido) VALUES (?, ?, \'sistema\', ?, 1)', [$id, $eid, 'Se actualizo la cotizacion. Total: ' . money($total, $emp['moneda']) . '.']);
+                db_exec("UPDATE cotizaciones SET respuesta_cliente = IF(respuesta_cliente = 'cambios', 'vista', respuesta_cliente) WHERE id = ?", [$id]);
+            }
             flash('ok', $cot['id'] ? 'Cotizacion actualizada.' . ($volvioPorEnviar ? ' Como cambio, quedo otra vez "Por enviar".' : '') : 'Cotizacion creada como pendiente.');
             // Imagen de la cotizacion
             $imgActual = db_val('SELECT imagen FROM cotizaciones WHERE id = ?', [$id]);

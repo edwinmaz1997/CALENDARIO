@@ -5,6 +5,7 @@ require __DIR__ . '/includes/pagos.php';
 require __DIR__ . '/includes/imagen_cotizacion.php';
 require __DIR__ . '/includes/proveedores.php';
 require __DIR__ . '/includes/whatsapp.php';
+require __DIR__ . '/includes/portal.php';
 require_empresa();
 
 $eid = empresa_id();
@@ -17,6 +18,17 @@ if (!$cot) {
     redirect('cotizaciones.php');
 }
 
+/* ---------- Mensajes nuevos del cliente (JSON, refresco del chat) ---------- */
+if (isset($_GET['mensajes'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $rows = db_all('SELECT id, autor, mensaje, created_at FROM cotizacion_mensajes WHERE cotizacion_id = ? AND id > ? ORDER BY id', [$id, input_int('despues')]);
+    marcar_mensajes_leidos($id);
+    echo json_encode(['estado' => $cot['estado'], 'mensajes' => array_map(function ($m) {
+        return ['id' => (int)$m['id'], 'autor' => $m['autor'], 'mensaje' => $m['mensaje'], 'cuando' => fecha($m['created_at'], true)];
+    }, $rows)], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 /* ---------- Acciones ---------- */
 if (is_post()) {
     // Si los archivos superan post_max_size, PHP llega con $_POST vacio
@@ -26,6 +38,21 @@ if (is_post()) {
     }
     csrf_check();
     $accion = input('accion');
+
+    if ($accion === 'mensaje_cliente') {
+        $txt = trim(input('mensaje'));
+        if ($txt !== '') {
+            $mid = agregar_mensaje($id, $eid, 'negocio', $txt);
+            marcar_mensajes_leidos($id);
+            if (input('ajax')) {
+                header('Content-Type: application/json; charset=utf-8');
+                $m = db_one('SELECT id, autor, mensaje, created_at FROM cotizacion_mensajes WHERE id = ?', [$mid]);
+                echo json_encode(['ok' => true, 'mensaje' => ['id' => (int)$m['id'], 'autor' => $m['autor'], 'mensaje' => $m['mensaje'], 'cuando' => fecha($m['created_at'], true)]], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#conversacion');
+    }
 
     if ($accion === 'aceptar' && $cot['estado'] !== 'aceptada') {
         $fe = input('fecha_evento', $cot['fecha_evento']);
@@ -41,7 +68,7 @@ if (is_post()) {
         db_exec('UPDATE cotizaciones SET estado = \'rechazada\', fecha_aceptacion = NULL, recordatorio_enviado = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Cotizacion marcada como rechazada.');
     } elseif ($accion === 'pendiente' && $cot['estado'] !== 'pendiente') {
-        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL, recordatorio_enviado = NULL, enviada_at = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+        db_exec('UPDATE cotizaciones SET estado = \'pendiente\', fecha_aceptacion = NULL, recordatorio_enviado = NULL, enviada_at = NULL, respuesta_cliente = NULL, respuesta_cliente_at = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'La cotizacion regreso a pendiente y por enviar' . ($cot['estado'] === 'aceptada' ? '; se quito del calendario.' : '.'));
     } elseif ($accion === 'duplicar') {
         $pdo = db();
@@ -123,7 +150,8 @@ if (is_post()) {
                 . '<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:22px">'
                 . '<p>Hola ' . e($cli['nombre']) . ',</p>'
                 . '<p>Te compartimos la cotizacion <strong>' . e($num) . '</strong> para tu evento del <strong>' . e(fecha_larga($cot['fecha_evento'])) . '</strong> por un total de <strong>' . e(money($cot['total'], $emp['moneda'])) . '</strong>.</p>'
-                . '<p>Encontraras el detalle en el PDF adjunto. Puedes responder a este correo para cualquier consulta o para confirmar.</p>'
+                . '<p>Encontraras el detalle en el PDF adjunto. Tambien puedes verla, aceptarla o solicitar cambios en linea:</p>'
+                . '<p style="margin:18px 0"><a href="' . e(enlace_portal($id)) . '" style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">Ver mi cotizacion</a></p>'
                 . '<p style="margin-top:22px;color:#64748b;font-size:13px">' . e($emp['nombre']) . ($emp['telefono'] ? ' · ' . e($emp['telefono']) : '') . ($emp['correo'] ? ' · ' . e($emp['correo']) : '') . '</p>'
                 . '</div></div>';
             list($okMail, $errMail) = enviar_correo($cli['correo'], 'Cotizacion ' . $num . ' - ' . $emp['nombre'], $html, '',
@@ -261,6 +289,9 @@ $telWa = preg_replace('/\D/', '', (string)($cliente['telefono'] ?? ''));
 if (strlen($telWa) === 8) {
     $telWa = '502' . $telWa; // Guatemala
 }
+$mensajes = mensajes_cotizacion($id);
+$sinLeer = count(array_filter($mensajes, function ($m) { return $m['autor'] === 'cliente' && !$m['leido']; }));
+marcar_mensajes_leidos($id);
 $errorPago = !empty($_SESSION['error_pago']);
 unset($_SESSION['error_pago']);
 $adjuntos = db_all('SELECT * FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY created_at DESC, id DESC', [$id]);
@@ -290,7 +321,7 @@ require __DIR__ . '/includes/header.php';
           <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Cotizacion</p>
           <p class="text-2xl font-extrabold texto-marca"><?= e($numero) ?></p>
           <p class="text-sm text-slate-500"><?= e(fecha_larga($cot['fecha'])) ?></p>
-          <div class="mt-2"><?= badge_estado($cot['estado']) ?></div>
+          <div class="mt-2"><?= badge_estado($cot['estado']) ?><?= badge_respuesta_cliente($cot) ?></div>
         </div>
       </div>
 
@@ -376,6 +407,36 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
     </article>
+
+    <!-- Conversacion con el cliente -->
+    <section id="conversacion" class="card mt-5 overflow-hidden" data-chat-poll="cotizacion_ver.php?id=<?= (int)$id ?>&amp;mensajes=1" data-chat-cliente="<?= e($cliente['nombre']) ?>" data-chat-ultimo="<?= $mensajes ? (int)end($mensajes)['id'] : 0 ?>">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:px-7">
+        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="messages-square" class="h-5 w-5 texto-marca"></i>Conversacion con el cliente
+          <?php if ($sinLeer): ?><span class="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white"><?= $sinLeer ?> nuevo<?= $sinLeer > 1 ? 's' : '' ?></span><?php endif; ?>
+        </h2>
+        <span class="text-xs text-slate-400">El cliente lo ve en su enlace</span>
+      </div>
+      <div class="max-h-96 space-y-2.5 overflow-y-auto bg-slate-50/60 px-4 py-4 sm:px-6" id="chat-lista">
+        <p class="py-4 text-center text-sm text-slate-400 <?= $mensajes ? 'hidden' : '' ?>" id="chat-vacio">Aun no hay mensajes. Cuando el cliente solicite cambios desde su enlace, apareceran aqui.</p>
+        <?php foreach ($mensajes as $m): $cuando = e(fecha($m['created_at'], true)); ?>
+          <?php if ($m['autor'] === 'sistema'): ?>
+            <div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600"><?= e($m['mensaje']) ?> · <?= $cuando ?></p></div>
+          <?php elseif ($m['autor'] === 'negocio'): ?>
+            <div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm shadow-sm" style="background: var(--c1); color: var(--c1-txt)"><p class="whitespace-pre-line break-words"><?= e($m['mensaje']) ?></p><p class="mt-1 text-right text-[10px] opacity-70"><?= $cuando ?></p></div></div>
+          <?php else: ?>
+            <div class="flex justify-start"><div class="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate-800 shadow-sm ring-1 <?= !$m['leido'] ? 'ring-rose-300' : 'ring-slate-200' ?>"><p class="mb-0.5 text-[11px] font-bold text-slate-500"><?= e($cliente['nombre']) ?></p><p class="whitespace-pre-line break-words"><?= e($m['mensaje']) ?></p><p class="mt-1 text-right text-[10px] text-slate-400"><?= $cuando ?></p></div></div>
+          <?php endif; ?>
+        <?php endforeach; ?>
+      </div>
+      <?php if ($cot['estado'] === 'pendiente'): ?>
+        <form method="post" class="flex items-end gap-2 border-t border-slate-100 p-3 sm:px-5" id="chat-form" data-sin-bloqueo>
+          <?= csrf_field() ?><input type="hidden" name="accion" value="mensaje_cliente">
+          <textarea name="mensaje" rows="1" maxlength="2000" required class="textarea max-h-32 min-h-[2.75rem] flex-1 resize-none py-2.5" placeholder="Responde al cliente..." id="chat-texto"></textarea>
+          <button class="btn btn-primario h-11 w-11 shrink-0 p-0" aria-label="Enviar"><i data-lucide="send-horizontal"></i></button>
+        </form>
+        <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-500 sm:px-7"><i data-lucide="info" class="mr-1 inline h-3.5 w-3.5 align-[-2px]"></i>Para hacer los cambios, <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="font-semibold texto-marca hover:underline">edita la cotizacion</a>: el cliente vera la version nueva en el mismo enlace.</p>
+      <?php endif; ?>
+    </section>
 
     <!-- Pagos -->
     <section id="pagos" class="card mt-5 overflow-hidden">
@@ -557,8 +618,9 @@ require __DIR__ . '/includes/header.php';
 
     <!-- Envio al cliente -->
     <?php
-      $msgCliente = 'Hola ' . $cliente['nombre'] . ', te comparto la cotizacion ' . $numero . ' de ' . $emp['nombre'] . ' por ' . money($cot['total'], $emp['moneda']) . '.';
-      $msgConEnlace = $msgCliente . "\n\nPuedes ver y descargar el PDF aqui:\n" . enlace_publico_cotizacion($id);
+      $msgConEnlace = mensaje_portal_cliente($cot, $emp, $cliente);
+      $msgCliente = $msgConEnlace;
+      $enlacePortal = enlace_portal($id);
       $waLink = 'https://wa.me/' . ($telWa ?: '') . '?text=' . rawurlencode($msgConEnlace);
     ?>
     <div class="card p-5" id="envio-cliente">
@@ -586,7 +648,16 @@ require __DIR__ . '/includes/header.php';
           </form>
         <?php endif; ?>
       </div>
-      <p class="mt-2 text-[11px] text-slate-400">Abre el chat del cliente con el mensaje y el enlace al PDF de la cotizacion; solo presiona enviar. Se marca como enviada.</p>
+      <p class="mt-2 text-[11px] text-slate-400">Abre el chat del cliente con un mensaje y su enlace: ahi puede ver, descargar, aceptar (eligiendo fecha y hora) o pedir cambios. Se marca como enviada.</p>
+      <div class="mt-2 flex items-center gap-1.5 rounded-xl bg-slate-50 p-1.5 pl-3 ring-1 ring-slate-200">
+        <i data-lucide="link" class="h-3.5 w-3.5 shrink-0 text-slate-400"></i>
+        <span class="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700" id="enlace-portal"><?= e(preg_replace('#^https?://#', '', $enlacePortal)) ?></span>
+        <button type="button" class="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-100" data-copiar="<?= e($enlacePortal) ?>">Copiar</button>
+        <a href="<?= e($enlacePortal) ?>" target="_blank" rel="noopener" class="rounded-lg p-1 text-slate-500 hover:bg-white" title="Ver como el cliente"><i data-lucide="external-link" class="h-4 w-4"></i></a>
+      </div>
+      <?php if ($cot['estado'] === 'pendiente' && !empty($cot['respuesta_cliente_at']) && in_array($cot['respuesta_cliente'], ['vista', 'cambios'], true)): ?>
+        <p class="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><i data-lucide="eye" class="h-3.5 w-3.5"></i>El cliente abrio su enlace (<?= e(fecha($cot['respuesta_cliente_at'], true)) ?>)</p>
+      <?php endif; ?>
       <button type="button" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold texto-marca hover:underline" id="btn-compartir-pdf"
               data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e($numero) ?>.pdf"
               data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waLink) ?>">

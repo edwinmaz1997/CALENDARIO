@@ -186,3 +186,56 @@
     tabs.addEventListener('click', function () { try { sessionStorage.setItem('tabsScroll', tabs.scrollLeft); } catch (e) {} });
   }
 })();
+
+// Copiar al portapapeles
+document.addEventListener('click', function (ev) {
+  var b = ev.target.closest('[data-copiar]'); if (!b) return;
+  var t = b.getAttribute('data-copiar'), orig = b.textContent;
+  var listo = function () { b.textContent = 'Copiado'; setTimeout(function () { b.textContent = orig; }, 1600); };
+  if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(t).then(listo, function () { window.prompt('Copia el enlace:', t); }); }
+  else { window.prompt('Copia el enlace:', t); }
+});
+
+// Conversacion con el cliente (vista de la cotizacion)
+(function () {
+  var sec = document.querySelector('[data-chat-poll]'); if (!sec) return;
+  var lista = sec.querySelector('#chat-lista'), form = sec.querySelector('#chat-form'), texto = sec.querySelector('#chat-texto');
+  var ultimo = +sec.getAttribute('data-chat-ultimo') || 0, cliente = sec.getAttribute('data-chat-cliente') || 'Cliente';
+  lista.scrollTop = lista.scrollHeight;
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function burbuja(m) {
+    if (m.autor === 'sistema') return '<div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600">' + esc(m.mensaje) + ' · ' + esc(m.cuando) + '</p></div>';
+    if (m.autor === 'negocio') return '<div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm shadow-sm" style="background: var(--c1); color: var(--c1-txt)"><p class="whitespace-pre-line break-words">' + esc(m.mensaje) + '</p><p class="mt-1 text-right text-[10px] opacity-70">' + esc(m.cuando) + '</p></div></div>';
+    return '<div class="flex justify-start"><div class="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate-800 shadow-sm ring-1 ring-rose-300"><p class="mb-0.5 text-[11px] font-bold text-slate-500">' + esc(cliente) + '</p><p class="whitespace-pre-line break-words">' + esc(m.mensaje) + '</p><p class="mt-1 text-right text-[10px] text-slate-400">' + esc(m.cuando) + '</p></div></div>';
+  }
+  function agregar(m) {
+    if (m.id <= ultimo) return; ultimo = m.id;
+    var v = sec.querySelector('#chat-vacio'); if (v) v.classList.add('hidden');
+    lista.insertAdjacentHTML('beforeend', burbuja(m)); lista.scrollTop = lista.scrollHeight;
+  }
+  if (form && texto) {
+    texto.addEventListener('input', function () { texto.style.height = 'auto'; texto.style.height = Math.min(texto.scrollHeight, 128) + 'px'; });
+    texto.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) form.requestSubmit ? form.requestSubmit() : form.submit(); });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (!texto.value.trim()) return;
+      var fd = new FormData(form); fd.append('ajax', '1');
+      var btn = form.querySelector('button'); btn.disabled = true;
+      fetch(form.getAttribute('action') || location.href, { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (r) { btn.disabled = false; if (r.ok) { texto.value = ''; texto.style.height = ''; agregar(r.mensaje); } })
+        .catch(function () { btn.disabled = false; form.submit(); });
+    });
+  }
+  var estado = null;
+  setInterval(function () {
+    if (document.hidden) return;
+    fetch(sec.getAttribute('data-chat-poll') + '&despues=' + ultimo, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        (r.mensajes || []).forEach(agregar);
+        if (estado && r.estado !== estado && !(texto && texto.value.trim())) location.reload();
+        estado = r.estado;
+      }).catch(function () {});
+  }, 20000);
+})();

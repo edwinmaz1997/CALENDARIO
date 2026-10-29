@@ -26,7 +26,11 @@ $_alertas = [];
 if ($_emp) {
     require_once __DIR__ . '/alertas.php';
     $_alertas = eventos_por_liquidar((int)$_emp['id']);
+    require_once __DIR__ . '/portal.php';
+    $_msgs = cotizaciones_con_mensajes((int)$_emp['id']);
 }
+$_msgs = $_msgs ?? [];
+$_nAvisos = count($_alertas) + count($_msgs);
 $_menuAdmin = [];
 if ($_u && $_u['rol'] === 'admin') {
     $_menuAdmin[] = ['empresas', 'empresas.php', 'briefcase', 'Empresas'];
@@ -129,12 +133,31 @@ if ($_u && $_u['rol'] === 'admin') {
     <?php if ($_emp): ?>
     <div class="relative shrink-0" id="campana">
       <button type="button" class="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" data-campana aria-label="Alertas de eventos" aria-expanded="false">
-        <i data-lucide="<?= $_alertas ? 'bell-ring' : 'bell' ?>" class="h-6 w-6 <?= $_alertas ? 'campana-anim text-rose-600' : '' ?>"></i>
-        <?php if ($_alertas): ?>
-          <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white ring-2 ring-white"><?= count($_alertas) > 9 ? '9+' : count($_alertas) ?></span>
+        <i data-lucide="<?= $_nAvisos ? 'bell-ring' : 'bell' ?>" class="h-6 w-6 <?= $_nAvisos ? 'campana-anim text-rose-600' : '' ?>"></i>
+        <?php if ($_nAvisos): ?>
+          <span class="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold text-white ring-2 ring-white"><?= $_nAvisos > 9 ? '9+' : $_nAvisos ?></span>
         <?php endif; ?>
       </button>
       <div class="campana-panel absolute right-0 top-full z-40 mt-2 hidden w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl" data-campana-panel>
+        <?php if ($_msgs): ?>
+          <div class="border-b border-slate-100 bg-violet-50/60 px-4 py-2.5">
+            <p class="flex items-center gap-1.5 text-sm font-bold text-slate-900"><i data-lucide="messages-square" class="h-4 w-4 texto-marca"></i>Mensajes de clientes</p>
+          </div>
+          <ul class="max-h-[40vh] divide-y divide-slate-100 overflow-y-auto border-b border-slate-200">
+            <?php foreach ($_msgs as $mg): ?>
+              <li>
+                <a href="cotizacion_ver.php?id=<?= (int)$mg['id'] ?>#conversacion" class="block px-4 py-3 hover:bg-slate-50">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="truncate text-sm font-semibold text-slate-900"><?= e($mg['cliente']) ?></p>
+                    <span class="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white"><?= (int)$mg['sin_leer'] ?></span>
+                  </div>
+                  <p class="text-xs text-slate-500"><?= e(numero_cotizacion($mg, $_emp)) ?><?= $mg['nombre_evento'] ? ' · ' . e($mg['nombre_evento']) : '' ?></p>
+                  <p class="mt-0.5 truncate text-xs text-slate-700">"<?= e($mg['ultimo_texto']) ?>"</p>
+                </a>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        <?php endif; ?>
         <div class="border-b border-slate-100 px-4 py-3">
           <p class="text-sm font-bold text-slate-900">Eventos por liquidar</p>
           <p class="text-xs text-slate-500">Eventos en los proximos <?= DIAS_ALERTA ?> dias (o ya pasados) con saldo pendiente.</p>

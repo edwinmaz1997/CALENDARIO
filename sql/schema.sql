@@ -144,6 +144,9 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   estado           ENUM('pendiente','aceptada','rechazada') NOT NULL DEFAULT 'pendiente',
   enviada_at       DATETIME     NULL,
   token_publico    VARCHAR(40)  NULL,
+  codigo_corto     VARCHAR(12)  NULL,
+  respuesta_cliente VARCHAR(20) NULL,
+  respuesta_cliente_at DATETIME NULL,
   notas            TEXT         NULL,
   imagen           VARCHAR(255) NULL,
   subtotal         DECIMAL(12,2) NULL,
@@ -159,6 +162,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   PRIMARY KEY (id),
   UNIQUE KEY uq_cotizacion_correlativo (empresa_id, correlativo),
   UNIQUE KEY uq_cotizacion_token (token_publico),
+  UNIQUE KEY uq_cotizacion_codigo (codigo_corto),
   KEY idx_cotizaciones_estado_evento (empresa_id, estado, fecha_evento),
   CONSTRAINT fk_cotizaciones_empresa FOREIGN KEY (empresa_id) REFERENCES empresas (id) ON DELETE CASCADE,
   CONSTRAINT fk_cotizaciones_cliente FOREIGN KEY (cliente_id) REFERENCES clientes (id),
@@ -187,6 +191,23 @@ CREATE TABLE IF NOT EXISTS cotizacion_detalle (
   CONSTRAINT fk_detalle_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE CASCADE,
   CONSTRAINT fk_detalle_producto FOREIGN KEY (producto_id) REFERENCES productos (id) ON DELETE SET NULL,
   CONSTRAINT fk_detalle_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Conversacion cotizacion <-> cliente (portal)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS cotizacion_mensajes (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  cotizacion_id INT UNSIGNED NOT NULL,
+  empresa_id    INT UNSIGNED NOT NULL,
+  autor         ENUM('cliente','negocio','sistema') NOT NULL,
+  mensaje       TEXT NOT NULL,
+  leido         TINYINT(1) NOT NULL DEFAULT 0,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_mensajes_cotizacion (cotizacion_id, id),
+  KEY idx_mensajes_empresa (empresa_id, autor, leido),
+  CONSTRAINT fk_mensajes_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
