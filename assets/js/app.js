@@ -159,3 +159,30 @@
     });
   }, 6000);
 })();
+
+// Conservar la posicion del menu lateral y mostrar la pestana activa (Mi empresa)
+(function () {
+  var nav = document.getElementById('menu-nav');
+  if (nav) {
+    try {
+      var y = sessionStorage.getItem('menuScroll');
+      if (y !== null) nav.scrollTop = +y;
+    } catch (e) {}
+    var activo = nav.querySelector('.nav-on');
+    if (activo) {
+      var r = activo.getBoundingClientRect(), rn = nav.getBoundingClientRect();
+      if (r.top < rn.top || r.bottom > rn.bottom) activo.scrollIntoView({ block: 'center' });
+    }
+    var guardar = function () { try { sessionStorage.setItem('menuScroll', nav.scrollTop); } catch (e) {} };
+    nav.addEventListener('scroll', guardar, { passive: true });
+    nav.addEventListener('click', guardar);
+  }
+  var tabs = document.querySelector('[data-tabs-scroll]');
+  var on = tabs && tabs.querySelector('[data-tab-on]');
+  if (on) {
+    try { var x = sessionStorage.getItem('tabsScroll'); if (x !== null) tabs.scrollLeft = +x; } catch (e) {}
+    var a = on.getBoundingClientRect(), t = tabs.getBoundingClientRect();
+    if (a.left < t.left || a.right > t.right) tabs.scrollLeft += a.left - t.left - (t.width - a.width) / 2;
+    tabs.addEventListener('click', function () { try { sessionStorage.setItem('tabsScroll', tabs.scrollLeft); } catch (e) {} });
+  }
+})();

@@ -236,9 +236,9 @@ function mi_empresa_secciones()
 function render_tabs_mi_empresa($actual)
 {
     ?>
-    <nav class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" aria-label="Apartados de mi empresa">
+    <nav data-tabs-scroll class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" aria-label="Apartados de mi empresa">
       <?php foreach (mi_empresa_secciones() as $k => $s): $on = $k === $actual; ?>
-        <a href="<?= e($s[0]) ?>" class="flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition <?= $on ? 'border-transparent bg-marca text-on-marca' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' ?>">
+        <a href="<?= e($s[0]) ?>" <?= $on ? 'data-tab-on' : '' ?> class="flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition <?= $on ? 'border-transparent bg-marca text-on-marca' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' ?>">
           <i data-lucide="<?= $s[1] ?>" class="h-4 w-4"></i><?= e($s[2]) ?>
         </a>
       <?php endforeach; ?>

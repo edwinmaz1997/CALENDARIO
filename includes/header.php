@@ -79,7 +79,7 @@ if ($_u && $_u['rol'] === 'admin') {
     </button>
   </div>
 
-  <nav class="flex-1 overflow-y-auto px-3 py-4">
+  <nav class="flex-1 overflow-y-auto px-3 py-4" id="menu-nav">
     <?php foreach ($_menu as $m): $on = $activo === $m[0]; ?>
       <a href="<?= $m[1] ?>" class="nav-link <?= $on ? 'nav-on' : '' ?>">
         <i data-lucide="<?= $m[2] ?>" class="h-5 w-5"></i><span><?= e($m[3]) ?></span>
