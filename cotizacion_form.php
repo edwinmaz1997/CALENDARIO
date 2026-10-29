@@ -251,9 +251,8 @@ $lineasJs = array_map(function ($l) {
     ];
 }, $lineas);
 
-$colsLinea = $proveedoresJs
-    ? 'md:grid-cols-[minmax(9rem,1fr)_8.5rem_3.75rem_6.25rem_5.75rem_1.75rem]'
-    : 'md:grid-cols-[minmax(9rem,1fr)_3.75rem_6.25rem_5.75rem_1.75rem]';
+$colsLinea = 'grid-cols-[minmax(0,1fr)_2.5rem_4.25rem_4rem_1.25rem] sm:grid-cols-[minmax(0,1fr)_3.5rem_5.5rem_5.5rem_1.75rem] '
+    . ($proveedoresJs ? 'md:grid-cols-[minmax(9rem,1fr)_8.5rem_3.75rem_6.25rem_5.75rem_1.75rem]' : 'md:grid-cols-[minmax(9rem,1fr)_3.75rem_6.25rem_5.75rem_1.75rem]');
 $titulo = $cot['id'] ? 'Editar ' . numero_cotizacion($cot) : 'Nueva cotizacion';
 $activo = 'cotizaciones';
 require __DIR__ . '/includes/header.php';
@@ -306,8 +305,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       </div>
     </section>
 
-    <section class="card p-5 sm:p-6">
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section class="card px-3 py-5 sm:p-6">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3 px-2 sm:px-0">
         <h2 class="text-base font-bold text-slate-900">Productos y servicios</h2>
         <div class="flex gap-2">
           <button type="button" class="btn btn-claro btn-sm" id="btn-nuevo-producto"><i data-lucide="package-plus"></i>Nuevo producto</button>
@@ -324,10 +323,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         <p class="mb-4 text-sm text-slate-500">Puedes <a href="productos.php?accion=nuevo" class="font-semibold texto-marca hover:underline">registrar productos</a> o usar lineas libres.</p>
       <?php endif; ?>
 
-      <!-- Encabezado (solo escritorio) -->
-      <div class="hidden gap-2 border-b border-slate-200 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 md:grid <?= $colsLinea ?>">
-        <div>Descripcion</div>
-        <?php if ($proveedoresJs): ?><div>Proveedor</div><?php endif; ?>
+      <!-- Encabezado -->
+      <div class="grid gap-1.5 border-b border-slate-200 pb-2 text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-[11px] md:gap-2 <?= $colsLinea ?>">
+        <div>Producto</div>
+        <?php if ($proveedoresJs): ?><div class="hidden md:block">Proveedor</div><?php endif; ?>
         <div class="text-right">Cant.</div>
         <div class="text-right">Precio</div>
         <div class="text-right">Subtotal</div>
@@ -462,32 +461,20 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
 <!-- Plantilla de linea -->
 <template id="tpl-linea">
-  <div class="linea-item grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-1.5 py-2 md:gap-y-0 <?= $colsLinea ?>">
+  <div class="linea-item grid items-center gap-1.5 py-1.5 md:gap-2 md:py-2 <?= $colsLinea ?>">
     <input type="hidden" name="producto_id[]">
     <input type="hidden" name="proveedor_id[]">
     <input type="hidden" name="unidad[]">
-    <div class="order-1 min-w-0 md:order-1">
-      <input class="input inp-sm" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
-    </div>
-    <p class="order-2 min-w-[4.5rem] truncate text-right md:min-w-0 text-sm font-bold text-slate-900 md:order-5" data-sub>0.00</p>
-    <div class="order-3 flex justify-end md:order-6">
-      <button type="button" class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-quitar aria-label="Quitar linea"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
-    </div>
-    <div class="order-4 col-span-3 flex items-center gap-2 md:contents">
-      <label class="relative w-[5.5rem] shrink-0 md:order-3 md:w-auto">
-        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[10px] font-bold uppercase text-slate-400 md:hidden">Cant</span>
-        <input class="input inp-sm pl-10 pr-2 text-right md:pl-2" name="cantidad[]" inputmode="decimal" value="1" data-cant aria-label="Cantidad">
-      </label>
-      <label class="relative w-[6.5rem] shrink-0 md:order-4 md:w-auto">
-        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs font-semibold text-slate-400"><?= e($emp['moneda']) ?></span>
-        <input class="input inp-sm pl-6 pr-2 text-right" name="precio[]" inputmode="decimal" value="0.00" data-precio aria-label="Precio">
-      </label>
+    <div class="flex min-w-0 flex-col md:contents">
+      <input class="input inp-xs md:order-1" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
       <?php if ($proveedoresJs): ?>
-      <label class="min-w-0 flex-1 md:order-2" data-prov-wrap>
-        <select class="select inp-sm truncate pl-2 pr-6" data-prov aria-label="Proveedor"></select>
-      </label>
+        <select class="linea-prov-sel md:order-2" data-prov aria-label="Proveedor"></select>
       <?php endif; ?>
     </div>
+    <input class="input inp-xs text-right md:order-3" name="cantidad[]" inputmode="decimal" value="1" data-cant aria-label="Cantidad">
+    <input class="input inp-xs text-right md:order-4" name="precio[]" inputmode="decimal" value="0.00" data-precio aria-label="Precio">
+    <p class="truncate text-right text-xs font-bold text-slate-900 sm:text-sm md:order-5" data-sub>0.00</p>
+    <button type="button" class="flex justify-center rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 md:order-6" data-quitar aria-label="Quitar linea"><i data-lucide="x" class="h-4 w-4"></i></button>
   </div>
 </template>
 
