@@ -315,3 +315,12 @@ function cot_texto_descuento($cot)
     $nombre = trim((string)($cot['descuento_nombre'] ?? ''));
     return 'Descuento' . ($nombre !== '' ? ': ' . $nombre : '') . ' del ' . pct_num($cot['descuento_pct']) . '%';
 }
+
+/** Nombre del archivo PDF: "Cotización EVT-00004 - María José Pérez.pdf" */
+function nombre_pdf_cotizacion($cot, $emp, $cliente)
+{
+    $nombre = trim(preg_replace('/\s+/', ' ', (string)($cliente['nombre'] ?? '')));
+    $base = 'Cotización ' . numero_cotizacion($cot, $emp) . ($nombre !== '' ? ' - ' . $nombre : '');
+    $base = preg_replace('#[\\\\/:*?"<>|\x00-\x1F]+#u', '', $base);
+    return mb_substr($base, 0, 120) . '.pdf';
+}

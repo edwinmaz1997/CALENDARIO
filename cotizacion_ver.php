@@ -163,7 +163,7 @@ if (is_post()) {
             $num = numero_cotizacion($cot, $emp);
             $urlPdf = enlace_portal($id) . '&pdf=1&descargar=1&v=' . substr(huella_cotizacion($id), 0, 6);
             $texto = 'Hola ' . $cli['nombre'] . ', adjunto tu cotización. ¡Excelente día!';
-            list($okW, , $errW) = wa_enviar_documento($tel, $urlPdf, $num . '.pdf', $texto, $cli['nombre']);
+            list($okW, , $errW) = wa_enviar_documento($tel, $urlPdf, nombre_pdf_cotizacion($cot, $emp, $cli), $texto, $cli['nombre']);
             if ($okW) {
                 db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
                 flash('ok', 'PDF enviado al WhatsApp de ' . $cli['nombre'] . '.');
@@ -193,7 +193,7 @@ if (is_post()) {
                 . '<p style="margin-top:22px;color:#64748b;font-size:13px">' . e($emp['nombre']) . ($emp['telefono'] ? ' · ' . e($emp['telefono']) : '') . ($emp['correo'] ? ' · ' . e($emp['correo']) : '') . '</p>'
                 . '</div></div>';
             list($okMail, $errMail) = enviar_correo($cli['correo'], 'Cotizacion ' . $num . ' - ' . $emp['nombre'], $html, '',
-                [['contenido' => $pdfBin, 'nombre' => $num . '.pdf', 'mime' => 'application/pdf']], $emp['correo'] ?: null, $emp['nombre']);
+                [['contenido' => $pdfBin, 'nombre' => nombre_pdf_cotizacion($cot, $emp, $cli), 'mime' => 'application/pdf']], $emp['correo'] ?: null, $emp['nombre']);
             if ($okMail) {
                 db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
                 flash('ok', 'Cotizacion enviada en PDF a ' . $cli['correo'] . ' y marcada como enviada.');
@@ -713,7 +713,7 @@ require __DIR__ . '/includes/header.php';
         </form>
       <?php else: ?>
       <button type="button" class="btn btn-claro mt-2 w-full" id="btn-compartir-pdf"
-              data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e($numero) ?>.pdf"
+              data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e(nombre_pdf_cotizacion($cot, $emp, $cliente)) ?>"
               data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waPdfLink) ?>">
         <i data-lucide="paperclip"></i>Prefiero compartir el archivo PDF
       </button>

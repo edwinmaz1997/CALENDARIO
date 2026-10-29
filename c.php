@@ -24,4 +24,4 @@ $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER
 $pdf = construir_pdf_cotizacion($cot, $emp, $cliente, $lineas);
 
 header('X-Robots-Tag: noindex, nofollow');
-enviar_pdf_sin_cache($pdf, numero_cotizacion($cot, $emp) . '.pdf', true);
+enviar_pdf_sin_cache($pdf, nombre_pdf_cotizacion($cot, $emp, $cliente), true);

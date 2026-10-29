@@ -443,10 +443,11 @@ function enviar_pdf_sin_cache($pdf, $nombre, $inline = true)
     while (ob_get_level() > 0) {
         ob_end_clean();
     }
-    $ascii = preg_replace('/[^A-Za-z0-9._-]+/', '_', $nombre);
+    $plano = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $nombre);
+    $ascii = trim(preg_replace('/[^A-Za-z0-9._ -]+/', '', $plano !== false ? $plano : $nombre)) ?: 'cotizacion.pdf';
     header('Content-Type: application/pdf');
     header('Content-Length: ' . strlen($bin));
-    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"');
+    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode($nombre));
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     header('Pragma: no-cache');
     header('Expires: 0');

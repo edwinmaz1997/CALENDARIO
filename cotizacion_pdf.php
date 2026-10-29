@@ -17,7 +17,6 @@ $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER
 
 $pdf = construir_pdf_cotizacion($cot, $emp, $cliente, $lineas);
 
-$nombreCliente = preg_replace('/[^A-Za-z0-9]+/', '_', iconv('UTF-8', 'ASCII//TRANSLIT', $cliente['nombre']) ?: 'cliente');
-$archivo = numero_cotizacion($cot, $emp) . '_' . trim($nombreCliente, '_') . '.pdf';
+$archivo = nombre_pdf_cotizacion($cot, $emp, $cliente);
 
 enviar_pdf_sin_cache($pdf, $archivo, !input_int('descargar'));

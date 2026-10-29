@@ -33,7 +33,7 @@ if (isset($_GET['pdf']) && $cot['estado'] !== 'rechazada') {
     require_once __DIR__ . '/includes/pdf_cotizacion.php';
     $lineas = db_all('SELECT * FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
     $pdf = construir_pdf_cotizacion($cot, $emp, $cliente, $lineas);
-    enviar_pdf_sin_cache($pdf, $numero . '.pdf', empty($_GET['descargar']));
+    enviar_pdf_sin_cache($pdf, nombre_pdf_cotizacion($cot, $emp, $cliente), empty($_GET['descargar']));
     exit;
 }
 

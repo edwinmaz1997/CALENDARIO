@@ -105,7 +105,7 @@ function enviar_recordatorio($cotId)
         $asunto,
         $html,
         '',
-        [['contenido' => $pdfBin, 'nombre' => $numero . '.pdf', 'mime' => 'application/pdf']],
+        [['contenido' => $pdfBin, 'nombre' => nombre_pdf_cotizacion($cot, $emp, $cliente), 'mime' => 'application/pdf']],
         null,
         $emp['nombre']
     );
