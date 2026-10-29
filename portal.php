@@ -187,9 +187,9 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
 <link rel="stylesheet" href="assets/css/app.css?v=<?= ASSET_V ?>">
 <link rel="stylesheet" href="assets/css/tailwind.css?v=<?= ASSET_V ?>">
 <script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/js/chat.js?v=<?= ASSET_V ?>"></script>
 <style>
   :root { --c1: <?= e($c1) ?>; --c2: <?= e($c2) ?>; --c1-txt: <?= e(color_texto($c1)) ?>; --c2-txt: <?= e(color_texto($c2)) ?>; }
-  .burbuja-cliente { background: var(--c1); color: var(--c1-txt); }
   .portal-modal { display: none; }
   .portal-modal.abierto { display: flex; }
 </style>
@@ -347,9 +347,9 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
             <i data-lucide="messages-square" class="h-5 w-5 texto-marca"></i>
             <h2 class="text-base font-extrabold text-slate-900">Conversacion</h2>
           </div>
-          <div class="max-h-[26rem] space-y-2.5 overflow-y-auto bg-slate-50/60 px-4 py-4" id="chat-lista">
+          <div class="max-h-[26rem] space-y-3 overflow-y-auto bg-slate-50/60 px-4 py-4" id="chat-lista">
             <p class="py-6 text-center text-sm text-slate-400 <?= $mensajes ? 'hidden' : '' ?>" id="chat-vacio">¿Quieres cambiar algo? Escribe aqui lo que necesitas y <?= e($emp['nombre']) ?> te enviara la cotizacion actualizada en este mismo enlace.</p>
-            <?php foreach ($mensajes as $m): ?><?= portal_burbuja($m, $emp) ?><?php endforeach; ?>
+            <?php foreach ($mensajes as $m): ?><?= burbuja_chat($m, 'cliente', $cliente['nombre'] ?? 'Cliente', $emp['nombre'], portal_cuando($m['created_at'])) ?><?php endforeach; ?>
           </div>
           <form method="post" action="<?= e($base) ?>" class="flex items-end gap-2 border-t border-slate-100 p-3" id="chat-form">
             <input type="hidden" name="accion" value="mensaje">
@@ -453,13 +453,7 @@ lucide.createIcons();
   lista.scrollTop = lista.scrollHeight;
   var ultimo = <?= $mensajes ? (int)end($mensajes)['id'] : 0 ?>, huella = '<?= e(substr(huella_cotizacion($id), 0, 8)) ?>';
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function burbuja(m) {
-    if (m.autor === 'sistema') return '<div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600">' + esc(m.mensaje) + ' · ' + esc(m.cuando) + '</p></div>';
-    var mio = m.autor === 'cliente';
-    return '<div class="flex ' + (mio ? 'justify-end' : 'justify-start') + '"><div class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ' + (mio ? 'burbuja-cliente rounded-br-md' : 'rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-200') + '">' +
-      (mio ? '' : '<p class="mb-0.5 text-[11px] font-bold texto-marca"><?= e(addslashes($emp['nombre'])) ?></p>') +
-      '<p class="whitespace-pre-line break-words">' + esc(m.mensaje) + '</p><p class="mt-1 text-right text-[10px] opacity-70">' + esc(m.cuando) + '</p></div></div>';
-  }
+  function burbuja(m) { return window.burbujaChat(m, 'cliente', <?= json_encode($cliente['nombre'] ?? 'Cliente', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>, <?= json_encode($emp['nombre'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>); }
   function agregar(m) { if (m.id <= ultimo) return; ultimo = m.id; $('#chat-vacio') && $('#chat-vacio').classList.add('hidden'); lista.insertAdjacentHTML('beforeend', burbuja(m)); lista.scrollTop = lista.scrollHeight; }
   texto.addEventListener('input', function () { texto.style.height = 'auto'; texto.style.height = Math.min(texto.scrollHeight, 128) + 'px'; });
   form.addEventListener('submit', function (ev) {
@@ -509,18 +503,6 @@ function portal_cuando($dt)
         return 'Ayer ' . date('g:i A', $t);
     }
     return date('d/m/Y g:i A', $t);
-}
-
-function portal_burbuja($m, $emp)
-{
-    $cuando = e(portal_cuando($m['created_at']));
-    if ($m['autor'] === 'sistema') {
-        return '<div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600">' . e($m['mensaje']) . ' · ' . $cuando . '</p></div>';
-    }
-    $mio = $m['autor'] === 'cliente';
-    return '<div class="flex ' . ($mio ? 'justify-end' : 'justify-start') . '"><div class="max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ' . ($mio ? 'burbuja-cliente rounded-br-md' : 'rounded-bl-md bg-white text-slate-800 ring-1 ring-slate-200') . '">'
-        . ($mio ? '' : '<p class="mb-0.5 text-[11px] font-bold texto-marca">' . e($emp['nombre']) . '</p>')
-        . '<p class="whitespace-pre-line break-words">' . e($m['mensaje']) . '</p><p class="mt-1 text-right text-[10px] opacity-70">' . $cuando . '</p></div></div>';
 }
 
 /** Pagina sencilla (enlace invalido, rechazada) y termina. */

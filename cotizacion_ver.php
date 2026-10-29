@@ -304,8 +304,18 @@ require __DIR__ . '/includes/header.php';
 ?>
 <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
   <!-- Documento -->
-  <div class="min-w-0 lg:col-span-2">
-    <article class="card overflow-hidden">
+  <div class="min-w-0 space-y-4 lg:col-span-2 lg:space-y-5">
+    <details id="detalle" class="desplegable card overflow-hidden" data-abierto-pc <?= $sinLeer ? 'open' : '' ?>>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
+        <i data-lucide="file-text" class="h-5 w-5 shrink-0 texto-marca"></i>
+        <span class="min-w-0">
+          <span class="block text-base font-bold text-slate-900">Detalle de la cotizacion</span>
+          <span class="block truncate text-xs text-slate-500"><?= e($cliente['nombre']) ?> · <?= e(money($cot['total'], $emp['moneda'])) ?><?= $mensajes ? ' · ' . count($mensajes) . ' mensaje' . (count($mensajes) > 1 ? 's' : '') : '' ?></span>
+        </span>
+        <?php if ($sinLeer): ?><span class="shrink-0 rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white"><?= $sinLeer ?> nuevo<?= $sinLeer > 1 ? 's' : '' ?></span><?php endif; ?>
+        <i data-lucide="chevron-down" class="chevron ml-auto h-5 w-5 shrink-0 text-slate-400"></i>
+      </summary>
+    <article class="overflow-hidden border-t border-slate-100">
       <div class="h-2" style="background: linear-gradient(90deg, var(--c1), var(--c2))"></div>
       <div class="flex flex-col gap-5 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-7">
         <div class="flex items-center gap-4">
@@ -321,7 +331,7 @@ require __DIR__ . '/includes/header.php';
           <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Cotizacion</p>
           <p class="text-2xl font-extrabold texto-marca"><?= e($numero) ?></p>
           <p class="text-sm text-slate-500"><?= e(fecha_larga($cot['fecha'])) ?></p>
-          <div class="mt-2"><?= badge_estado($cot['estado']) ?><?= badge_respuesta_cliente($cot) ?></div>
+          <div class="mt-2 flex flex-wrap gap-1 sm:justify-end"><?= badge_estado($cot['estado']) ?><?= badge_respuesta_cliente($cot) ?></div>
         </div>
       </div>
 
@@ -409,24 +419,16 @@ require __DIR__ . '/includes/header.php';
     </article>
 
     <!-- Conversacion con el cliente -->
-    <section id="conversacion" class="card mt-5 overflow-hidden" data-chat-poll="cotizacion_ver.php?id=<?= (int)$id ?>&amp;mensajes=1" data-chat-cliente="<?= e($cliente['nombre']) ?>" data-chat-ultimo="<?= $mensajes ? (int)end($mensajes)['id'] : 0 ?>">
+    <section id="conversacion" class="overflow-hidden border-t-4 border-slate-100" data-chat-poll="cotizacion_ver.php?id=<?= (int)$id ?>&amp;mensajes=1" data-chat-cliente="<?= e($cliente['nombre']) ?>" data-chat-empresa="<?= e($emp['nombre']) ?>" data-chat-ultimo="<?= $mensajes ? (int)end($mensajes)['id'] : 0 ?>">
       <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4 sm:px-7">
         <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="messages-square" class="h-5 w-5 texto-marca"></i>Conversacion con el cliente
-          <?php if ($sinLeer): ?><span class="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white"><?= $sinLeer ?> nuevo<?= $sinLeer > 1 ? 's' : '' ?></span><?php endif; ?>
+          <?php if ($sinLeer): ?><span class="whitespace-nowrap rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white"><?= $sinLeer ?> nuevo<?= $sinLeer > 1 ? 's' : '' ?></span><?php endif; ?>
         </h2>
         <span class="text-xs text-slate-400">El cliente lo ve en su enlace</span>
       </div>
-      <div class="max-h-96 space-y-2.5 overflow-y-auto bg-slate-50/60 px-4 py-4 sm:px-6" id="chat-lista">
+      <div class="max-h-96 space-y-3 overflow-y-auto bg-slate-50/60 px-4 py-4 sm:px-6" id="chat-lista">
         <p class="py-4 text-center text-sm text-slate-400 <?= $mensajes ? 'hidden' : '' ?>" id="chat-vacio">Aun no hay mensajes. Cuando el cliente solicite cambios desde su enlace, apareceran aqui.</p>
-        <?php foreach ($mensajes as $m): $cuando = e(fecha($m['created_at'], true)); ?>
-          <?php if ($m['autor'] === 'sistema'): ?>
-            <div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600"><?= e($m['mensaje']) ?> · <?= $cuando ?></p></div>
-          <?php elseif ($m['autor'] === 'negocio'): ?>
-            <div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm shadow-sm" style="background: var(--c1); color: var(--c1-txt)"><p class="whitespace-pre-line break-words"><?= e($m['mensaje']) ?></p><p class="mt-1 text-right text-[10px] opacity-70"><?= $cuando ?></p></div></div>
-          <?php else: ?>
-            <div class="flex justify-start"><div class="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate-800 shadow-sm ring-1 <?= !$m['leido'] ? 'ring-rose-300' : 'ring-slate-200' ?>"><p class="mb-0.5 text-[11px] font-bold text-slate-500"><?= e($cliente['nombre']) ?></p><p class="whitespace-pre-line break-words"><?= e($m['mensaje']) ?></p><p class="mt-1 text-right text-[10px] text-slate-400"><?= $cuando ?></p></div></div>
-          <?php endif; ?>
-        <?php endforeach; ?>
+        <?php foreach ($mensajes as $m): ?><?= burbuja_chat($m, 'negocio', $cliente['nombre'], $emp['nombre'], fecha($m['created_at'], true)) ?><?php endforeach; ?>
       </div>
       <?php if ($cot['estado'] === 'pendiente'): ?>
         <form method="post" class="flex items-end gap-2 border-t border-slate-100 p-3 sm:px-5" id="chat-form" data-sin-bloqueo>
@@ -437,13 +439,20 @@ require __DIR__ . '/includes/header.php';
         <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-500 sm:px-7"><i data-lucide="info" class="mr-1 inline h-3.5 w-3.5 align-[-2px]"></i>Para hacer los cambios, <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="font-semibold texto-marca hover:underline">edita la cotizacion</a>: el cliente vera la version nueva en el mismo enlace.</p>
       <?php endif; ?>
     </section>
+    </details>
 
     <!-- Pagos -->
-    <section id="pagos" class="card mt-5 overflow-hidden">
-      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-7">
-        <h2 class="flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="wallet" class="h-5 w-5 texto-marca"></i>Control de pagos</h2>
-        <?= badge_pago($pagosRes) ?>
-      </div>
+    <details id="pagos" class="desplegable card overflow-hidden" data-abierto-pc <?= $errorPago ? 'open' : '' ?>>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
+        <i data-lucide="wallet" class="h-5 w-5 shrink-0 texto-marca"></i>
+        <span class="min-w-0">
+          <span class="block text-base font-bold text-slate-900">Control de pagos</span>
+          <span class="block truncate text-xs text-slate-500">Pagado <?= e(money($pagosRes['pagado'], $emp['moneda'])) ?> · Pendiente <?= e(money(max(0, $pagosRes['saldo']), $emp['moneda'])) ?></span>
+        </span>
+        <span class="ml-auto shrink-0"><?= badge_pago($pagosRes) ?></span>
+        <i data-lucide="chevron-down" class="chevron h-5 w-5 shrink-0 text-slate-400"></i>
+      </summary>
+      <div class="border-t border-slate-100"></div>
       <div class="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 text-center">
         <div class="px-2 py-4">
           <p class="text-xs font-semibold text-slate-500">Total</p>
@@ -522,10 +531,10 @@ require __DIR__ . '/includes/header.php';
           </div>
         </form>
       </details>
-    </section>
+    </details>
 
     <!-- Adjuntos (desplegable) -->
-    <details id="adjuntos" class="desplegable card mt-5 overflow-hidden">
+    <details id="adjuntos" class="desplegable card overflow-hidden">
       <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-7">
         <i data-lucide="paperclip" class="h-5 w-5 texto-marca"></i>
         <span class="text-base font-bold text-slate-900">Archivos adjuntos</span>
@@ -580,7 +589,13 @@ require __DIR__ . '/includes/header.php';
 
   <!-- Acciones -->
   <aside class="min-w-0 space-y-4">
-    <div class="card space-y-2 p-5">
+    <details id="opciones" class="desplegable card overflow-hidden" data-abierto-pc>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
+        <i data-lucide="sliders-horizontal" class="h-5 w-5 shrink-0 texto-marca"></i>
+        <span class="text-base font-bold text-slate-900">Opciones</span>
+        <i data-lucide="chevron-down" class="chevron ml-auto h-5 w-5 shrink-0 text-slate-400"></i>
+      </summary>
+    <div class="space-y-2 border-t border-slate-100 p-5">
       <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-primario w-full"><i data-lucide="file-text"></i>Ver PDF</a>
       <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&descargar=1" class="btn btn-claro w-full"><i data-lucide="download"></i>Descargar PDF</a>
       <?php if ($cot['estado'] === 'pendiente'): ?>
@@ -598,7 +613,7 @@ require __DIR__ . '/includes/header.php';
       </form>
     </div>
 
-    <a href="#pagos" class="card block p-5 transition hover:shadow-md">
+    <a href="#pagos" class="block border-t border-slate-100 p-5 transition hover:bg-slate-50">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-sm font-bold text-slate-900">Pagos</h3>
         <?= badge_pago($pagosRes) ?>
@@ -615,6 +630,7 @@ require __DIR__ . '/includes/header.php';
       </div>
       <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: <?= (int)$pagosRes['porcentaje'] ?>%"></div></div>
     </a>
+    </details>
 
     <!-- Envio al cliente -->
     <?php
@@ -623,15 +639,20 @@ require __DIR__ . '/includes/header.php';
       $enlacePortal = enlace_portal($id);
       $waLink = 'https://wa.me/' . ($telWa ?: '') . '?text=' . rawurlencode($msgConEnlace);
     ?>
-    <div class="card p-5" id="envio-cliente">
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="text-sm font-bold text-slate-900">Enviar al cliente</h3>
+    <details class="desplegable card overflow-hidden" id="envio-cliente" data-abierto-pc>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
+        <i data-lucide="send" class="h-5 w-5 shrink-0 texto-marca"></i>
+        <span class="text-base font-bold text-slate-900">Enviar al cliente</span>
+        <span class="ml-auto shrink-0">
         <?php if ($cot['enviada_at']): ?>
           <span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>
         <?php else: ?>
           <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Por enviar</span>
         <?php endif; ?>
-      </div>
+        </span>
+        <i data-lucide="chevron-down" class="chevron h-5 w-5 shrink-0 text-slate-400"></i>
+      </summary>
+      <div class="border-t border-slate-100 p-5 pt-3">
       <?php if ($cot['enviada_at']): ?>
         <p class="mt-1 text-xs text-slate-500">Enviada el <?= e(fecha($cot['enviada_at'], true)) ?>.</p>
       <?php endif; ?>
@@ -677,14 +698,13 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
     </div>
+    </details>
 
     <?php if ($recProv): ?>
     <!-- Recordatorio a proveedores por WhatsApp (un chat por proveedor con sus productos) -->
-    <div class="card overflow-hidden" id="recordatorio-proveedores" style="scroll-margin-top:5rem">
-      <div class="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
-        <h3 class="flex items-center gap-2 text-sm font-bold text-slate-900"><i data-lucide="truck" class="h-4 w-4 texto-marca"></i>Recordatorio a proveedores</h3>
-        <span class="text-xs text-slate-500"><?= count(array_filter($recProv, function ($r) { return $r['enviado']; })) ?>/<?= count($recProv) ?> enviados</span>
-      </div>
+    <details class="desplegable card overflow-hidden" id="recordatorio-proveedores" style="scroll-margin-top:5rem" data-abierto-pc>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6"><i data-lucide="truck" class="h-5 w-5 shrink-0 texto-marca"></i><span class="text-base font-bold text-slate-900">Recordatorio a proveedores</span><span class="ml-auto shrink-0 text-xs text-slate-500"><?= count(array_filter($recProv, function ($r) { return $r['enviado']; })) ?>/<?= count($recProv) ?> enviados</span><i data-lucide="chevron-down" class="chevron h-5 w-5 shrink-0 text-slate-400"></i></summary>
+      <div class="border-t border-slate-100">
       <?php if ($cot['estado'] !== 'aceptada'): ?>
         <p class="bg-amber-50 px-5 py-2 text-[11px] text-amber-800">La cotizacion aun no esta aceptada.</p>
       <?php endif; ?>
@@ -718,6 +738,7 @@ require __DIR__ . '/includes/header.php';
       </ul>
       <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400">Cada boton abre el chat de ese proveedor con su lista de productos, la fecha y el lugar del evento. Solo presiona enviar.</p>
     </div>
+    </details>
     <?php endif; ?>
 
     <?php if ($cot['estado'] === 'aceptada'): ?>
@@ -772,12 +793,9 @@ require __DIR__ . '/includes/header.php';
     <?php endif; ?>
 
     <?php if ($provRes['filas']): ?>
-    <!-- Proveedores del evento (interno) -->
-    <div class="card p-5">
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="text-sm font-bold text-slate-900">Proveedores y ganancia</h3>
-        <span class="text-[11px] text-slate-400">No sale en el PDF</span>
-      </div>
+    <details class="desplegable card overflow-hidden" data-abierto-pc>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6"><i data-lucide="hand-coins" class="h-5 w-5 shrink-0 texto-marca"></i><span class="min-w-0"><span class="block text-base font-bold text-slate-900">Proveedores y ganancia</span><span class="block text-xs text-slate-500">Ganancia <?= e(money($cot['total'] - $provRes['costo'], $emp['moneda'])) ?> · no sale en el PDF</span></span><span class="ml-auto"></span><i data-lucide="chevron-down" class="chevron h-5 w-5 shrink-0 text-slate-400"></i></summary>
+      <div class="border-t border-slate-100 p-5 pt-1">
       <ul class="mt-3 space-y-2 text-sm">
         <?php foreach ($provRes['filas'] as $pf): ?>
           <li class="flex items-start justify-between gap-2">
@@ -795,10 +813,12 @@ require __DIR__ . '/includes/header.php';
       </div>
       <?php if ($cot['estado'] !== 'aceptada'): ?><p class="mt-2 text-[11px] text-amber-700">El adeudo con los proveedores se genera al aceptar la cotizacion.</p><?php endif; ?>
     </div>
+    </details>
     <?php endif; ?>
 
-    <div class="card p-5">
-      <h3 class="mb-3 text-sm font-bold text-slate-900">Estado de la cotizacion</h3>
+    <details class="desplegable card overflow-hidden" id="estado" data-abierto-pc>
+      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6"><i data-lucide="flag" class="h-5 w-5 shrink-0 texto-marca"></i><span class="text-base font-bold text-slate-900">Estado</span><span class="ml-auto shrink-0"><?= badge_estado($cot['estado']) ?></span><i data-lucide="chevron-down" class="chevron h-5 w-5 shrink-0 text-slate-400"></i></summary>
+      <div class="border-t border-slate-100 p-5">
 
       <?php if ($cot['estado'] !== 'aceptada'): ?>
         <form method="post" class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4" data-confirmar="Marcar como aceptada y agendar el evento?">
@@ -849,6 +869,7 @@ require __DIR__ . '/includes/header.php';
         <?php endif; ?>
       </div>
     </div>
+    </details>
 
     <div class="card p-5 text-sm text-slate-600">
       <dl class="space-y-2">

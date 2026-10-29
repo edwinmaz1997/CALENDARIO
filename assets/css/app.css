@@ -208,3 +208,6 @@ html.visor-activo, html.visor-activo body { overflow: hidden; }
 }
 .nav-abajo { padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -4px 16px rgba(15,23,42,.05); }
 .barra-sobre-nav { bottom: var(--nav-abajo); }
+
+/* Conversacion */
+.burbuja-propia { background: var(--c1); color: var(--c1-txt); }

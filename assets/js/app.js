@@ -31,11 +31,19 @@
     var id = (window.location.hash || '').slice(1);
     if (!id) return;
     var el = document.getElementById(id);
-    if (el && el.tagName === 'DETAILS') {
-      el.open = true;
-      setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
-    }
+    if (!el) return;
+    var abrio = false;
+    for (var d = el; d; d = d.parentElement) { if (d.tagName === 'DETAILS' && !d.open) { d.open = true; abrio = true; } }
+    if (abrio || el.tagName === 'DETAILS') setTimeout(function () { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
   }
+  // En escritorio los apartados marcados inician abiertos
+  if (window.matchMedia && window.matchMedia('(min-width: 1024px)').matches) {
+    document.querySelectorAll('details[data-abierto-pc]').forEach(function (d) { d.open = true; });
+  }
+  // Al abrir la conversacion, bajar al ultimo mensaje
+  document.querySelectorAll('details').forEach(function (d) {
+    d.addEventListener('toggle', function () { if (!d.open) return; var l = d.querySelector('#chat-lista'); if (l) l.scrollTop = l.scrollHeight; });
+  });
   abrirPorHash();
   window.addEventListener('hashchange', abrirPorHash);
   document.querySelectorAll('[data-abrir]').forEach(function (a) {
@@ -203,11 +211,8 @@ document.addEventListener('click', function (ev) {
   var ultimo = +sec.getAttribute('data-chat-ultimo') || 0, cliente = sec.getAttribute('data-chat-cliente') || 'Cliente';
   lista.scrollTop = lista.scrollHeight;
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function burbuja(m) {
-    if (m.autor === 'sistema') return '<div class="flex justify-center"><p class="rounded-full bg-slate-200/70 px-3 py-1 text-center text-[11px] font-semibold text-slate-600">' + esc(m.mensaje) + ' · ' + esc(m.cuando) + '</p></div>';
-    if (m.autor === 'negocio') return '<div class="flex justify-end"><div class="max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm shadow-sm" style="background: var(--c1); color: var(--c1-txt)"><p class="whitespace-pre-line break-words">' + esc(m.mensaje) + '</p><p class="mt-1 text-right text-[10px] opacity-70">' + esc(m.cuando) + '</p></div></div>';
-    return '<div class="flex justify-start"><div class="max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate-800 shadow-sm ring-1 ring-rose-300"><p class="mb-0.5 text-[11px] font-bold text-slate-500">' + esc(cliente) + '</p><p class="whitespace-pre-line break-words">' + esc(m.mensaje) + '</p><p class="mt-1 text-right text-[10px] text-slate-400">' + esc(m.cuando) + '</p></div></div>';
-  }
+  var empresa = sec.getAttribute('data-chat-empresa') || 'Tu negocio';
+  function burbuja(m) { return window.burbujaChat(m, 'negocio', cliente, empresa); }
   function agregar(m) {
     if (m.id <= ultimo) return; ultimo = m.id;
     var v = sec.querySelector('#chat-vacio'); if (v) v.classList.add('hidden');

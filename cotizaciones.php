@@ -124,12 +124,14 @@ require __DIR__ . '/includes/header.php';
           <?php endif; ?>
         </td>
         <td data-label="Estado">
+          <div class="flex min-w-0 flex-wrap items-center justify-end gap-1 md:justify-start [&>*]:whitespace-nowrap">
           <?= badge_estado($c['estado']) ?>
-          <?php if ((int)$c['msg_nuevos']): ?><a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>#conversacion" class="ml-1 inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white"><i data-lucide="message-circle" class="h-3 w-3"></i><?= (int)$c['msg_nuevos'] ?></a><?php endif; ?>
+          <?php if ((int)$c['msg_nuevos']): ?><a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>#conversacion" class="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white"><i data-lucide="message-circle" class="h-3 w-3"></i><?= (int)$c['msg_nuevos'] ?></a><?php endif; ?>
           <?= badge_respuesta_cliente($c) ?>
           <?php if ($c['estado'] === 'pendiente'): ?>
-            <?= $c['enviada_at'] ? '<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>' : '<span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Por enviar</span>' ?>
+            <?= $c['enviada_at'] ? '<span class="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"><i data-lucide="send" class="h-3 w-3"></i>Enviada</span>' : '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Por enviar</span>' ?>
           <?php endif; ?>
+          </div>
         </td>
         <td class="td-acciones">
           <div class="flex justify-end gap-1.5">

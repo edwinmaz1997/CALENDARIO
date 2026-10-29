@@ -117,10 +117,33 @@ function badge_respuesta_cliente($cot)
         return '';
     }
     if ($cot['respuesta_cliente'] === 'cambios') {
-        return '<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800"><i data-lucide="message-square-diff" class="h-3 w-3"></i>Pide cambios</span>';
+        return '<span class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800"><i data-lucide="message-square-diff" class="h-3 w-3"></i>Pide cambios</span>';
     }
     if ($cot['respuesta_cliente'] === 'vista') {
-        return '<span class="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><i data-lucide="eye" class="h-3 w-3"></i>Vista</span>';
+        return '<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><i data-lucide="eye" class="h-3 w-3"></i>Vista</span>';
     }
     return '';
+}
+
+/**
+ * Burbuja de la conversacion.
+ * $yo = 'negocio' (vista interna) o 'cliente' (portal): los mensajes propios van a la derecha con el color de la marca.
+ */
+function burbuja_chat($m, $yo, $nombreCliente, $nombreEmpresa, $cuando)
+{
+    if ($m['autor'] === 'sistema') {
+        return '<div class="flex justify-center py-1"><p class="max-w-[90%] rounded-full bg-slate-200/80 px-3 py-1 text-center text-[11px] font-semibold text-slate-600">' . e($m['mensaje']) . ' · ' . e($cuando) . '</p></div>';
+    }
+    $mio = $m['autor'] === $yo;
+    $nombre = $m['autor'] === 'cliente' ? $nombreCliente : $nombreEmpresa;
+    $etiqueta = $mio ? 'Tú' : $nombre;
+    $inicial = mb_strtoupper(mb_substr(trim($nombre), 0, 1));
+    $nuevo = !$mio && $m['autor'] === 'cliente' && isset($m['leido']) && !$m['leido'];
+    $avatar = '<span class="mt-5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold ' . ($mio ? 'burbuja-propia' : 'bg-slate-200 text-slate-600') . '">' . e($inicial) . '</span>';
+    $globo = '<div class="min-w-0 max-w-[80%]">'
+        . '<p class="mb-0.5 px-1 text-[11px] font-bold ' . ($mio ? 'text-right texto-marca' : 'text-slate-500') . '">' . e($etiqueta) . '</p>'
+        . '<div class="rounded-2xl px-3.5 py-2 text-sm shadow-sm ' . ($mio ? 'burbuja-propia rounded-tr-md' : 'rounded-tl-md bg-white text-slate-800 ring-1 ' . ($nuevo ? 'ring-rose-300' : 'ring-slate-200')) . '">'
+        . '<p class="whitespace-pre-line break-words">' . e($m['mensaje']) . '</p>'
+        . '<p class="mt-1 text-right text-[10px] ' . ($mio ? 'opacity-75' : 'text-slate-400') . '">' . e($cuando) . '</p></div></div>';
+    return '<div class="flex items-start gap-2 ' . ($mio ? 'flex-row-reverse' : '') . '">' . $avatar . $globo . '</div>';
 }
