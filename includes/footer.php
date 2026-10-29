@@ -26,6 +26,9 @@
 </nav>
 <?php endif; ?>
 
+<!-- Volver arriba -->
+<button type="button" class="btn-arriba" id="btn-arriba" aria-label="Volver arriba" title="Volver arriba"><i data-lucide="arrow-up" class="h-5 w-5"></i></button>
+
 <script src="assets/js/chat.js?v=<?= ASSET_V ?>"></script>
 <script src="assets/js/app.js?v=<?= ASSET_V ?>"></script>
 <script src="assets/js/visor.js?v=<?= ASSET_V ?>"></script>

@@ -416,7 +416,9 @@ require __DIR__ . '/includes/header.php';
           <p class="mt-6 whitespace-pre-line border-t border-slate-100 pt-4 text-xs text-slate-500"><?= e($emp['pie_cotizacion']) ?></p>
         <?php endif; ?>
       </div>
-      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3 sm:px-7">
+      <div class="border-t border-slate-100">
+      <p class="bg-marca-suave px-5 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-wider texto-marca">Opciones</p>
+      <div class="flex flex-wrap items-center justify-center gap-2 bg-slate-50/60 px-5 py-3 sm:px-7">
         <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-claro btn-sm" title="Ver PDF"><i data-lucide="eye"></i><span class="hidden sm:inline">Ver PDF</span></a>
         <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-claro btn-sm" title="Descargar PDF"><i data-lucide="file-down"></i><span class="hidden sm:inline">Descargar</span></a>
         <?php if ($cot['estado'] === 'pendiente'): ?>
@@ -428,6 +430,7 @@ require __DIR__ . '/includes/header.php';
         <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="accion" value="duplicar">
           <button class="btn btn-claro btn-sm" title="Duplicar"><i data-lucide="copy"></i><span class="hidden sm:inline">Duplicar</span></button>
         </form>
+      </div>
       </div>
     </article>
 
@@ -649,10 +652,10 @@ require __DIR__ . '/includes/header.php';
       <?php if ($cot['estado'] === 'pendiente' && !empty($cot['respuesta_cliente_at']) && in_array($cot['respuesta_cliente'], ['vista', 'cambios'], true)): ?>
         <p class="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><i data-lucide="eye" class="h-3.5 w-3.5"></i>El cliente abrio su enlace (<?= e(fecha($cot['respuesta_cliente_at'], true)) ?>)</p>
       <?php endif; ?>
-      <button type="button" class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold texto-marca hover:underline" id="btn-compartir-pdf"
+      <button type="button" class="btn btn-claro mt-2 w-full" id="btn-compartir-pdf"
               data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e($numero) ?>.pdf"
               data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waLink) ?>">
-        <i data-lucide="paperclip" class="h-3.5 w-3.5"></i>Prefiero compartir el archivo PDF
+        <i data-lucide="paperclip"></i>Prefiero compartir el archivo PDF
       </button>
       <p class="hidden" id="ayuda-compartir"></p>
 

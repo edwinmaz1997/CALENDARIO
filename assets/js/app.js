@@ -244,3 +244,11 @@ document.addEventListener('click', function (ev) {
       }).catch(function () {});
   }, 20000);
 })();
+
+// Boton fijo para volver arriba
+(function () {
+  var b = document.getElementById('btn-arriba'); if (!b) return;
+  var f = function () { b.classList.toggle('visible', window.scrollY > 400); };
+  window.addEventListener('scroll', f, { passive: true }); f();
+  b.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+})();
