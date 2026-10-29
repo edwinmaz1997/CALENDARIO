@@ -54,6 +54,8 @@ return [
         // Nombres de las plantillas aprobadas en Meta (categoria Utilidad)
         'plantilla_cliente'   => 'recordatorio_evento_cliente',
         'plantilla_proveedor' => 'recordatorio_evento_proveedor',
+        // Plantilla con encabezado tipo Documento para enviar el PDF al cliente (cuerpo: Hola {{1}}, adjunto tu cotizacion. ¡Excelente dia!)
+        'plantilla_documento' => 'envio_cotizacion_pdf',
         // Dias antes del evento en que se envia cada recordatorio
         'dias' => [5, 1],
     ],

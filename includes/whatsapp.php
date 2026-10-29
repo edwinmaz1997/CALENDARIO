@@ -96,6 +96,13 @@ function wa_enviar_plantilla($telefono, $plantilla, array $variables, $idioma = 
     if ($componentes) {
         $cuerpo['template']['components'] = $componentes;
     }
+    return wa_post($cuerpo);
+}
+
+/** POST a la Cloud API. Devuelve [ok, message_id|null, error|null]. */
+function wa_post(array $cuerpo)
+{
+    $c = wa_config();
     $url = $c['api_base'] . '/' . $c['api_version'] . '/' . rawurlencode($c['phone_number_id']) . '/messages';
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -121,6 +128,43 @@ function wa_enviar_plantilla($telefono, $plantilla, array $variables, $idioma = 
         $msg = '[' . $j['error']['code'] . '] ' . $msg;
     }
     return [false, null, $msg];
+}
+
+/**
+ * Envia el PDF de la cotizacion como documento al WhatsApp del cliente.
+ * Si hay 'plantilla_documento' configurada se usa (funciona siempre); si no, se envia como mensaje
+ * normal, que Meta solo entrega si el cliente escribio al negocio en las ultimas 24 horas.
+ */
+function wa_enviar_documento($telefono, $urlPdf, $nombreArchivo, $texto, $nombreCliente = '')
+{
+    if (!wa_configurado()) {
+        return [false, null, 'WhatsApp no esta configurado (falta phone_number_id o token).'];
+    }
+    $c = wa_config();
+    $plantilla = trim((string)($GLOBALS['CONFIG']['whatsapp']['plantilla_documento'] ?? ''));
+    if ($plantilla !== '') {
+        $cuerpo = [
+            'messaging_product' => 'whatsapp',
+            'to'                => $telefono,
+            'type'              => 'template',
+            'template'          => [
+                'name'       => $plantilla,
+                'language'   => ['code' => $c['idioma']],
+                'components' => [
+                    ['type' => 'header', 'parameters' => [['type' => 'document', 'document' => ['link' => $urlPdf, 'filename' => $nombreArchivo]]]],
+                    ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => wa_texto($nombreCliente ?: '-')]]],
+                ],
+            ],
+        ];
+    } else {
+        $cuerpo = [
+            'messaging_product' => 'whatsapp',
+            'to'                => $telefono,
+            'type'              => 'document',
+            'document'          => ['link' => $urlPdf, 'filename' => $nombreArchivo, 'caption' => $texto],
+        ];
+    }
+    return wa_post($cuerpo);
 }
 
 /* ---------------- Datos de los mensajes ---------------- */

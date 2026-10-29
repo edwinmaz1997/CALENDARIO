@@ -129,10 +129,13 @@
       return fetch(window.location.pathname + window.location.search, { method: 'POST', body: fd, credentials: 'same-origin' });
     }
     var puedeCompartir = !!(navigator.canShare && navigator.share);
-    if (puedeCompartir) cargarPdf().catch(function () {}); // se descarga antes para compartir al instante
-    else {
-      var ay = document.getElementById('ayuda-compartir');
-      if (ay) ay.textContent = 'En computadora se descarga el PDF y se abre el chat de WhatsApp del cliente para que lo adjuntes. Se marca como enviada.';
+    var ay = document.getElementById('ayuda-compartir');
+    if (puedeCompartir) {
+      cargarPdf().catch(function () {}); // se descarga antes para compartir al instante
+      if (ay) { ay.textContent = 'Se abre el menu de compartir con el PDF y el mensaje: elige WhatsApp y luego el chat de ' + (ay.getAttribute('data-cliente') || 'tu cliente') + '.'; ay.classList.remove('hidden'); }
+    } else if (ay) {
+      ay.textContent = 'Se descarga el PDF y se abre el chat de WhatsApp del cliente con el mensaje; solo adjunta el archivo descargado.';
+      ay.classList.remove('hidden');
     }
     btnPdf.addEventListener('click', function () {
       var html = btnPdf.innerHTML;

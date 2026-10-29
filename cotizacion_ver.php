@@ -154,6 +154,24 @@ if (is_post()) {
             }
         }
         redirect('cotizacion_ver.php?id=' . $id . '#whatsapp');
+    } elseif ($accion === 'enviar_pdf_wa') {
+        $cli = db_one('SELECT * FROM clientes WHERE id = ?', [$cot['cliente_id']]);
+        $tel = wa_telefono($cli['telefono'] ?? '');
+        if (!$tel) {
+            flash('error', 'El cliente no tiene un telefono valido.');
+        } else {
+            $num = numero_cotizacion($cot, $emp);
+            $urlPdf = enlace_portal($id) . '&pdf=1&descargar=1&v=' . substr(huella_cotizacion($id), 0, 6);
+            $texto = 'Hola ' . $cli['nombre'] . ', adjunto tu cotización. ¡Excelente día!';
+            list($okW, , $errW) = wa_enviar_documento($tel, $urlPdf, $num . '.pdf', $texto, $cli['nombre']);
+            if ($okW) {
+                db_exec('UPDATE cotizaciones SET enviada_at = COALESCE(enviada_at, NOW()) WHERE id = ? AND empresa_id = ?', [$id, $eid]);
+                flash('ok', 'PDF enviado al WhatsApp de ' . $cli['nombre'] . '.');
+            } else {
+                flash('error', 'WhatsApp no entrego el PDF: ' . $errW);
+            }
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#envio-cliente');
     } elseif ($accion === 'enviar_correo_cliente') {
         require_once APP_ROOT . '/includes/correo.php';
         require_once APP_ROOT . '/includes/pdf_cotizacion.php';
@@ -687,12 +705,20 @@ require __DIR__ . '/includes/header.php';
       <?php if ($cot['estado'] === 'pendiente' && !empty($cot['respuesta_cliente_at']) && in_array($cot['respuesta_cliente'], ['vista', 'cambios'], true)): ?>
         <p class="mt-2 flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><i data-lucide="eye" class="h-3.5 w-3.5"></i>El cliente abrio su enlace (<?= e(fecha($cot['respuesta_cliente_at'], true)) ?>)</p>
       <?php endif; ?>
+      <?php $waPdfLink = 'https://wa.me/' . ($telWa ?: '') . '?text=' . rawurlencode($msgCliente); ?>
+      <?php if ($telWa && wa_config()['activo'] && wa_configurado()): ?>
+        <form method="post" data-confirmar="Enviar el PDF al WhatsApp de <?= e($cliente['nombre']) ?> (<?= e($cliente['telefono']) ?>)?">
+          <?= csrf_field() ?><input type="hidden" name="accion" value="enviar_pdf_wa">
+          <button class="btn btn-claro mt-2 w-full"><i data-lucide="paperclip"></i>Enviar el PDF a su WhatsApp</button>
+        </form>
+      <?php else: ?>
       <button type="button" class="btn btn-claro mt-2 w-full" id="btn-compartir-pdf"
               data-pdf="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" data-nombre="<?= e($numero) ?>.pdf"
-              data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waLink) ?>">
+              data-texto="<?= e($msgCliente) ?>" data-wa="<?= e($waPdfLink) ?>">
         <i data-lucide="paperclip"></i>Prefiero compartir el archivo PDF
       </button>
-      <p class="hidden" id="ayuda-compartir"></p>
+      <?php endif; ?>
+      <p class="mt-1 hidden text-[11px] text-slate-400" id="ayuda-compartir" data-cliente="<?= e($cliente['nombre'] . ($cliente['telefono'] ? ' (' . $cliente['telefono'] . ')' : '')) ?>"></p>
 
       <div class="mt-3 border-t border-slate-100 pt-3">
         <?php if ($cot['enviada_at']): ?>
