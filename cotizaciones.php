@@ -62,7 +62,7 @@ $accionesHeader = '<a href="cotizacion_form.php" class="btn btn-primario btn-sm"
 require __DIR__ . '/includes/header.php';
 ?>
 <!-- Pestanas por estado -->
-<div class="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+<div data-tabs-scroll class="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
   <div class="inline-flex gap-1 rounded-xl bg-slate-200/60 p-1">
     <?php
     $tabs = ['' => ['Todas', $conteos['pendiente'] + $conteos['aceptada'] + $conteos['rechazada']]];
