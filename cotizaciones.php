@@ -134,7 +134,7 @@ require __DIR__ . '/includes/header.php';
           </div>
         </td>
         <td class="td-acciones">
-          <div class="flex justify-end gap-1.5">
+          <div class="flex w-full justify-center gap-1.5 border-t border-slate-100 pt-2.5 md:justify-end md:border-0 md:pt-0">
             <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>" class="btn btn-claro btn-sm btn-icono" title="Ver"><i data-lucide="eye"></i></a>
             <a href="cotizacion_pdf.php?id=<?= (int)$c['id'] ?>" data-visor="pdf" data-titulo="<?= e(numero_cotizacion($c, $emp)) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$c['id'] ?>&amp;descargar=1" class="btn btn-claro btn-sm btn-icono" title="PDF"><i data-lucide="file-down"></i></a>
             <a href="cotizacion_ver.php?id=<?= (int)$c['id'] ?>#adjuntos" class="btn btn-claro btn-sm btn-icono" title="Adjuntos"><i data-lucide="paperclip"></i></a>
