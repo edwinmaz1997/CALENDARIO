@@ -251,6 +251,9 @@ $lineasJs = array_map(function ($l) {
     ];
 }, $lineas);
 
+$colsLinea = $proveedoresJs
+    ? 'md:grid-cols-[minmax(9rem,1fr)_8.5rem_3.75rem_6.25rem_5.75rem_1.75rem]'
+    : 'md:grid-cols-[minmax(9rem,1fr)_3.75rem_6.25rem_5.75rem_1.75rem]';
 $titulo = $cot['id'] ? 'Editar ' . numero_cotizacion($cot) : 'Nueva cotizacion';
 $activo = 'cotizaciones';
 require __DIR__ . '/includes/header.php';
@@ -289,18 +292,17 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       </div>
 
       <div class="mt-4">
-        <label for="descuento_id" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700"><i data-lucide="percent" class="h-4 w-4 texto-marca"></i>Descuentos</label>
-        <?php if ($descuentosJs): ?>
-          <select class="select" name="descuento_id" id="descuento_id">
-            <option value="">Sin descuento</option>
-            <?php foreach ($descuentosJs as $d): ?>
-              <option value="<?= $d['id'] ?>" <?= (int)$cot['descuento_id'] === $d['id'] ? 'selected' : '' ?>><?= e($d['nombre']) ?> (<?= e(pct_num($d['pct'])) ?>%)</option>
-            <?php endforeach; ?>
-          </select>
-          <p class="ayuda">Se aplica al total de la venta.</p>
-        <?php else: ?>
-          <p class="rounded-xl border border-dashed border-slate-200 px-3 py-2.5 text-sm text-slate-500">No tienes descuentos creados. <a href="descuentos.php" class="font-semibold texto-marca hover:underline">Crear descuentos</a></p>
-        <?php endif; ?>
+        <div class="mb-1.5 flex items-center justify-between gap-2">
+          <label for="descuento_id" class="flex items-center gap-1.5 text-sm font-semibold text-slate-700"><i data-lucide="percent" class="h-4 w-4 texto-marca"></i>Descuentos</label>
+          <button type="button" class="btn btn-claro btn-sm" id="btn-nuevo-descuento"><i data-lucide="plus"></i>Nuevo</button>
+        </div>
+        <select class="select" name="descuento_id" id="descuento_id">
+          <option value="">Sin descuento</option>
+          <?php foreach ($descuentosJs as $d): ?>
+            <option value="<?= $d['id'] ?>" <?= (int)$cot['descuento_id'] === $d['id'] ? 'selected' : '' ?>><?= e($d['nombre']) ?> (<?= e(pct_num($d['pct'])) ?>%)</option>
+          <?php endforeach; ?>
+        </select>
+        <p class="ayuda">Se aplica al total de la venta.<?= $descuentosJs ? '' : ' Aun no tienes descuentos: crea uno con "Nuevo".' ?></p>
       </div>
     </section>
 
@@ -323,14 +325,16 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
       <?php endif; ?>
 
       <!-- Encabezado (solo escritorio) -->
-      <div class="hidden grid-cols-12 gap-3 border-b border-slate-200 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500 md:grid">
-        <div class="col-span-5">Descripcion</div>
-        <div class="col-span-2 text-right">Cantidad</div>
-        <div class="col-span-2 text-right">Precio</div>
-        <div class="col-span-2 text-right">Subtotal</div>
-        <div class="col-span-1"></div>
+      <div class="hidden gap-2 border-b border-slate-200 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 md:grid <?= $colsLinea ?>">
+        <div>Descripcion</div>
+        <?php if ($proveedoresJs): ?><div>Proveedor</div><?php endif; ?>
+        <div class="text-right">Cant.</div>
+        <div class="text-right">Precio</div>
+        <div class="text-right">Subtotal</div>
+        <div></div>
       </div>
       <div id="lineas" class="divide-y divide-slate-100"></div>
+      <p class="mt-2 hidden text-right text-xs text-slate-400" data-n-lineas></p>
       <p id="lineas-vacio" class="py-8 text-center text-sm text-slate-400">Aun no hay productos en la cotizacion.</p>
     </section>
     <details class="desplegable card overflow-hidden" id="adjuntos-form">
@@ -458,34 +462,31 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
 <!-- Plantilla de linea -->
 <template id="tpl-linea">
-  <div class="linea-item grid grid-cols-12 items-start gap-x-3 gap-y-2 py-3">
+  <div class="linea-item grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-1.5 py-2 md:gap-y-0 <?= $colsLinea ?>">
     <input type="hidden" name="producto_id[]">
     <input type="hidden" name="proveedor_id[]">
     <input type="hidden" name="unidad[]">
-    <div class="order-1 col-span-10 md:col-span-5">
-      <input class="input" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
-      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p class="text-xs text-slate-400" data-meta></p>
-        <label class="linea-prov hidden items-center gap-1 text-xs text-slate-500" data-prov-wrap>
-          <i data-lucide="truck" class="h-3.5 w-3.5"></i>
-          <select class="rounded-md border border-slate-200 bg-white py-1 pl-1.5 pr-6 text-xs font-semibold text-slate-700" data-prov aria-label="Proveedor"></select>
-        </label>
-      </div>
+    <div class="order-1 min-w-0 md:order-1">
+      <input class="input inp-sm" name="descripcion[]" maxlength="255" placeholder="Descripcion" data-desc>
     </div>
-    <div class="order-2 col-span-2 flex justify-end md:order-5 md:col-span-1">
-      <button type="button" class="rounded-lg p-2.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-quitar aria-label="Quitar linea"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+    <p class="order-2 min-w-[4.5rem] truncate text-right md:min-w-0 text-sm font-bold text-slate-900 md:order-5" data-sub>0.00</p>
+    <div class="order-3 flex justify-end md:order-6">
+      <button type="button" class="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" data-quitar aria-label="Quitar linea"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
     </div>
-    <label class="order-3 col-span-4 md:col-span-2">
-      <span class="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Cantidad</span>
-      <input class="input text-right" name="cantidad[]" inputmode="decimal" value="1" data-cant>
-    </label>
-    <label class="order-3 col-span-4 md:col-span-2">
-      <span class="mb-1 block text-xs font-semibold text-slate-500 md:hidden">Precio</span>
-      <input class="input text-right" name="precio[]" inputmode="decimal" value="0.00" data-precio>
-    </label>
-    <div class="order-3 col-span-4 min-w-0 md:col-span-2">
-      <span class="mb-1 block text-right text-xs font-semibold text-slate-500 md:hidden">Subtotal</span>
-      <p class="truncate py-2.5 text-right font-bold text-slate-900" data-sub>0.00</p>
+    <div class="order-4 col-span-3 flex items-center gap-2 md:contents">
+      <label class="relative w-[5.5rem] shrink-0 md:order-3 md:w-auto">
+        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[10px] font-bold uppercase text-slate-400 md:hidden">Cant</span>
+        <input class="input inp-sm pl-10 pr-2 text-right md:pl-2" name="cantidad[]" inputmode="decimal" value="1" data-cant aria-label="Cantidad">
+      </label>
+      <label class="relative w-[6.5rem] shrink-0 md:order-4 md:w-auto">
+        <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs font-semibold text-slate-400"><?= e($emp['moneda']) ?></span>
+        <input class="input inp-sm pl-6 pr-2 text-right" name="precio[]" inputmode="decimal" value="0.00" data-precio aria-label="Precio">
+      </label>
+      <?php if ($proveedoresJs): ?>
+      <label class="min-w-0 flex-1 md:order-2" data-prov-wrap>
+        <select class="select inp-sm truncate pl-2 pr-6" data-prov aria-label="Proveedor"></select>
+      </label>
+      <?php endif; ?>
     </div>
   </div>
 </template>
@@ -515,6 +516,31 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     <div class="mt-5 flex gap-3">
       <button type="button" class="btn btn-claro flex-1" data-cerrar-producto>Cancelar</button>
       <button type="submit" class="btn btn-primario flex-1"><i data-lucide="check"></i>Guardar y agregar</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal nuevo descuento -->
+<div id="modal-descuento" class="fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
+  <form id="form-descuento" class="my-auto w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl sm:p-6" data-sin-bloqueo>
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-lg font-bold text-slate-900">Nuevo descuento</h3>
+      <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" data-cerrar-descuento aria-label="Cerrar"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div id="desc-error" class="mb-3 hidden rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"></div>
+    <div class="space-y-4">
+      <label class="campo"><span>Nombre del descuento *</span><input class="input" name="nombre" maxlength="100" required placeholder="Ej: Cliente frecuente"></label>
+      <label class="campo"><span>Porcentaje *</span>
+        <div class="relative">
+          <input class="input pr-9 text-right" name="porcentaje" inputmode="decimal" required placeholder="10">
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-bold text-slate-400">%</span>
+        </div>
+      </label>
+    </div>
+    <p class="ayuda mt-3">Se guarda en Mi empresa &gt; Descuentos y se aplica a esta cotizacion.</p>
+    <div class="mt-5 flex gap-3">
+      <button type="button" class="btn btn-claro flex-1" data-cerrar-descuento>Cancelar</button>
+      <button type="submit" class="btn btn-primario flex-1"><i data-lucide="check"></i>Guardar y aplicar</button>
     </div>
   </form>
 </div>

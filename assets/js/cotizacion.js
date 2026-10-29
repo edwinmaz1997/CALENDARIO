@@ -139,6 +139,8 @@
       $('[data-ganancia]', el).classList.toggle('text-emerald-600', total - costo >= 0);
     });
     vacio.classList.toggle('hidden', filas.length > 0);
+    var nl = $('[data-n-lineas]');
+    if (nl) { nl.classList.toggle('hidden', filas.length < 2); nl.textContent = filas.length + ' lineas'; }
   }
 
   var descPorId = {}, selDesc = document.getElementById('descuento_id');
@@ -146,6 +148,36 @@
   function descuentoSel() { return selDesc && selDesc.value ? descPorId[+selDesc.value] || null : null; }
   function pctTxt(n) { return (Math.round(n * 100) / 100).toString(); }
   if (selDesc) selDesc.addEventListener('change', function () { recalcular(); });
+
+  /* Modal nuevo descuento */
+  var modalD = $('#modal-descuento'), formD = $('#form-descuento'), errD = $('#desc-error');
+  function cerrarDesc() { modalD.classList.add('hidden'); modalD.classList.remove('flex'); }
+  if (modalD && selDesc) {
+    $('#btn-nuevo-descuento').addEventListener('click', function () {
+      formD.reset(); errD.classList.add('hidden');
+      modalD.classList.remove('hidden'); modalD.classList.add('flex');
+      setTimeout(function () { formD.nombre.focus(); }, 50);
+    });
+    Array.prototype.forEach.call(modalD.querySelectorAll('[data-cerrar-descuento]'), function (b) { b.addEventListener('click', cerrarDesc); });
+    modalD.addEventListener('click', function (ev) { if (ev.target === modalD) cerrarDesc(); });
+    formD.addEventListener('submit', function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      var fd = new FormData(formD); fd.append('csrf', D.csrf); fd.append('accion', 'rapido');
+      var btn = formD.querySelector('[type=submit]'); btn.disabled = true;
+      fetch('descuentos.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          btn.disabled = false;
+          if (!r.ok) { errD.textContent = r.error || 'No se pudo guardar.'; errD.classList.remove('hidden'); return; }
+          var d = r.descuento; d.id = +d.id; d.pct = +d.pct;
+          descPorId[d.id] = d;
+          var op = document.createElement('option'); op.value = d.id; op.textContent = d.nombre + ' (' + pctTxt(d.pct) + '%)';
+          selDesc.appendChild(op); selDesc.value = d.id;
+          cerrarDesc(); recalcular();
+        })
+        .catch(function () { btn.disabled = false; errD.textContent = 'Error de conexion. Intenta de nuevo.'; errD.classList.remove('hidden'); });
+    });
+  }
 
   var provs = D.proveedores || [], provPorId = {};
   provs.forEach(function (p) { provPorId[p.id] = p; });
@@ -162,11 +194,11 @@
     $('[data-desc]', f).value = l.descripcion || '';
     $('[data-cant]', f).value = l.cantidad != null ? l.cantidad : 1;
     $('[data-precio]', f).value = (l.precio != null ? num(l.precio) : 0).toFixed(2);
-    $('[data-meta]', f).textContent = l.producto_id ? ('Producto del catalogo' + (l.unidad ? ' · ' + l.unidad : '')) : 'Linea libre';
+    $('[data-desc]', f).title = l.producto_id ? ('Producto del catalogo' + (l.unidad ? ' · ' + l.unidad : '')) : 'Linea libre';
     var provSel = l.proveedor_id && provPorId[l.proveedor_id] ? l.proveedor_id : null;
     f.querySelector('[name="proveedor_id[]"]').value = provSel || '';
     var sp = $('[data-prov]', f), spw = $('[data-prov-wrap]', f);
-    if (provs.length) { sp.innerHTML = opcionesProv(provSel); spw.classList.remove('hidden'); spw.classList.add('inline-flex'); }
+    if (sp && provs.length) sp.innerHTML = opcionesProv(provSel);
     cont.appendChild(frag);
     iconos(); recalcular();
     if (enfocar) { var el = enfocar === 'desc' ? $('[data-desc]', f) : $('[data-cant]', f); el.focus(); el.select(); }

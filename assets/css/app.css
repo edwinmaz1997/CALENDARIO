@@ -68,6 +68,8 @@ details.nav-grupo[open] > summary .chevron { transform: rotate(180deg); }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c1) 20%, transparent);
 }
 .input[readonly] { background: #f8fafc; }
+.input.inp-sm, .select.inp-sm { padding-top: .4rem; padding-bottom: .4rem; border-radius: .6rem; }
+@media (min-width: 640px) { .input.inp-sm, .select.inp-sm { font-size: .85rem; } }
 .input-color { height: 2.75rem; padding: .25rem; cursor: pointer; }
 .ayuda { margin-top: .3rem; font-size: .75rem; color: #64748b; }
 

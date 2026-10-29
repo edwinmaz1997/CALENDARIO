@@ -19,6 +19,25 @@ if (is_post()) {
         redirect('descuentos.php');
     }
 
+    if ($accion === 'rapido') {
+        // Alta rapida desde la cotizacion (AJAX)
+        header('Content-Type: application/json; charset=utf-8');
+        $nombre = mb_substr(input('nombre'), 0, 100);
+        $pct = str_replace(['%', ','], ['', '.'], input('porcentaje'));
+        if ($nombre === '') {
+            echo json_encode(['ok' => false, 'error' => 'Escribe el nombre del descuento.']);
+            exit;
+        }
+        if (!is_numeric($pct) || (float)$pct <= 0 || (float)$pct > 100) {
+            echo json_encode(['ok' => false, 'error' => 'El porcentaje debe ser mayor a 0 y maximo 100.']);
+            exit;
+        }
+        $pct = round((float)$pct, 2);
+        db_exec('INSERT INTO descuentos (empresa_id, nombre, porcentaje) VALUES (?, ?, ?)', [$eid, $nombre, $pct]);
+        echo json_encode(['ok' => true, 'descuento' => ['id' => (int)db()->lastInsertId(), 'nombre' => $nombre, 'pct' => $pct]], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     if ($accion === 'guardar') {
         $form = [
             'id'         => $id,
