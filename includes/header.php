@@ -55,7 +55,7 @@ if ($_u && $_u['rol'] === 'admin') {
 </style>
 <?= $extraHead ?? '' ?>
 </head>
-<body class="h-full bg-slate-50 font-sans text-slate-800 antialiased">
+<body class="h-full bg-slate-50 font-sans text-slate-800 antialiased <?= $_emp ? 'con-nav-abajo' : '' ?>">
 
 <!-- Fondo del menu movil -->
 <div id="menu-fondo" class="fixed inset-0 z-30 hidden bg-slate-900/50 lg:hidden"></div>

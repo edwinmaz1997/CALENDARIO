@@ -439,7 +439,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
   </div>
 
   <!-- Barra inferior movil -->
-  <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,.06)] lg:hidden" style="padding-bottom: max(.75rem, env(safe-area-inset-bottom))">
+  <div class="barra-sobre-nav fixed inset-x-0 z-20 border-t border-slate-200 bg-white px-4 py-2.5 lg:hidden">
     <div class="flex items-center gap-3">
       <div class="min-w-0 flex-1">
         <p class="text-xs text-slate-500">Total <span class="hidden font-semibold text-rose-600" data-desc-movil></span></p>

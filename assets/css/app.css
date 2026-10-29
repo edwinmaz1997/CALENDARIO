@@ -200,3 +200,11 @@ html.visor-activo, html.visor-activo body { overflow: hidden; }
 /* Pestanas deslizables sin barra de desplazamiento visible */
 [data-tabs-scroll] { scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; }
 [data-tabs-scroll]::-webkit-scrollbar { display: none; }
+
+/* Navegacion inferior estilo app */
+:root { --nav-abajo: 0px; }
+@media (max-width: 1023.98px) {
+  body.con-nav-abajo { --nav-abajo: calc(4.1rem + env(safe-area-inset-bottom)); padding-bottom: var(--nav-abajo); }
+}
+.nav-abajo { padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -4px 16px rgba(15,23,42,.05); }
+.barra-sobre-nav { bottom: var(--nav-abajo); }
