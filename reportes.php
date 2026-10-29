@@ -182,8 +182,10 @@ function kpi($titulo, $valor, $sub, $color = 'text-slate-900')
   </div>
   <div class="grid gap-3 sm:grid-cols-4 sm:items-end">
     <?php if ($tipo === 'rango'): ?>
-      <label class="campo"><span>Desde</span><input class="input" type="date" name="desde" value="<?= e($ini) ?>"></label>
-      <label class="campo"><span>Hasta</span><input class="input" type="date" name="hasta" value="<?= e($fin) ?>"></label>
+      <div class="grid grid-cols-2 gap-3 sm:col-span-2">
+        <label class="campo min-w-0"><span>Desde</span><input class="input min-w-0" type="date" name="desde" value="<?= e($ini) ?>"></label>
+        <label class="campo min-w-0"><span>Hasta</span><input class="input min-w-0" type="date" name="hasta" value="<?= e($fin) ?>"></label>
+      </div>
     <?php else: ?>
       <?php if ($tipo === 'mensual'): ?>
         <label class="campo"><span>Mes</span>
@@ -198,7 +200,7 @@ function kpi($titulo, $valor, $sub, $color = 'text-slate-900')
         </select>
       </label>
     <?php endif; ?>
-    <button class="btn btn-primario"><i data-lucide="bar-chart-3"></i>Ver reporte</button>
+    <?php if ($tipo === 'rango'): ?><button class="btn btn-primario"><i data-lucide="check"></i>Aplicar fechas</button><?php endif; ?>
   </div>
 </form>
 

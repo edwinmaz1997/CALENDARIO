@@ -84,8 +84,10 @@ require __DIR__ . '/includes/header.php';
   <label class="campo sm:col-span-2"><span>Buscar</span>
     <input class="input" type="search" name="q" value="<?= e($q) ?>" placeholder="Numero, cliente, evento, NIT o lugar">
   </label>
-  <label class="campo"><span>Evento desde</span><input class="input" type="date" name="desde" value="<?= e($desde) ?>"></label>
-  <label class="campo"><span>Evento hasta</span><input class="input" type="date" name="hasta" value="<?= e($hasta) ?>"></label>
+  <div class="grid grid-cols-2 gap-3 sm:col-span-2">
+    <label class="campo min-w-0"><span>Evento desde</span><input class="input min-w-0" type="date" name="desde" value="<?= e($desde) ?>"></label>
+    <label class="campo min-w-0"><span>Evento hasta</span><input class="input min-w-0" type="date" name="hasta" value="<?= e($hasta) ?>"></label>
+  </div>
   <div class="flex gap-2">
     <button class="btn btn-primario flex-1" type="submit"><i data-lucide="filter"></i>Filtrar</button>
     <?php if ($q !== '' || $desde || $hasta): ?><a class="btn btn-claro" href="cotizaciones.php<?= $estado ? '?estado=' . e($estado) : '' ?>" title="Limpiar"><i data-lucide="x"></i></a><?php endif; ?>
