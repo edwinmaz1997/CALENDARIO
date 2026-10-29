@@ -44,10 +44,30 @@ if (is_post()) {
         if ($txt !== '') {
             $mid = agregar_mensaje($id, $eid, 'negocio', $txt);
             marcar_mensajes_leidos($id);
+            if (input('avisar_correo')) {
+                $cliM = db_one('SELECT nombre, correo FROM clientes WHERE id = ?', [$cot['cliente_id']]);
+                if (!empty($cliM['correo']) && filter_var($cliM['correo'], FILTER_VALIDATE_EMAIL)) {
+                    require_once APP_ROOT . '/includes/correo.php';
+                    $c1 = $emp['color_primario'];
+                    $num = numero_cotizacion($cot, $emp);
+                    $html = '<div style="font-family:Segoe UI,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#334155">'
+                        . '<div style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:16px 22px;border-radius:12px 12px 0 0;font-size:17px;font-weight:bold">' . e($emp['nombre']) . '</div>'
+                        . '<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:22px">'
+                        . '<p>Hola ' . e(primer_nombre($cliM['nombre'])) . ', te respondimos sobre tu cotizacion <strong>' . e($num) . '</strong>:</p>'
+                        . '<p style="background:#f1f5f9;border-radius:10px;padding:12px 14px;white-space:pre-line">' . e($txt) . '</p>'
+                        . '<p style="margin:20px 0"><a href="' . e(enlace_portal($id)) . '" style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">Ver y responder</a></p>'
+                        . '</div></div>';
+                    list($okM, $errM) = enviar_correo($cliM['correo'], 'Respuesta a tu cotizacion ' . $num . ' - ' . $emp['nombre'], $html, '', [], $emp['correo'] ?: null, $emp['nombre']);
+                    if (!$okM && !input('ajax')) {
+                        flash('error', 'No se pudo enviar el aviso por correo: ' . $errM);
+                    }
+                    $avisoCorreo = $okM ? 'ok' : ('error: ' . $errM);
+                }
+            }
             if (input('ajax')) {
                 header('Content-Type: application/json; charset=utf-8');
                 $m = db_one('SELECT id, autor, mensaje, created_at FROM cotizacion_mensajes WHERE id = ?', [$mid]);
-                echo json_encode(['ok' => true, 'mensaje' => ['id' => (int)$m['id'], 'autor' => $m['autor'], 'mensaje' => $m['mensaje'], 'cuando' => fecha($m['created_at'], true)]], JSON_UNESCAPED_UNICODE);
+                echo json_encode(['ok' => true, 'correo' => $avisoCorreo ?? null, 'mensaje' => ['id' => (int)$m['id'], 'autor' => $m['autor'], 'mensaje' => $m['mensaje'], 'cuando' => fecha($m['created_at'], true)]], JSON_UNESCAPED_UNICODE);
                 exit;
             }
         }
@@ -149,7 +169,7 @@ if (is_post()) {
                 . '<div style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:18px 22px;border-radius:12px 12px 0 0;font-size:18px;font-weight:bold">' . e($emp['nombre']) . '</div>'
                 . '<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 12px 12px;padding:22px">'
                 . '<p>Hola ' . e($cli['nombre']) . ',</p>'
-                . '<p>Te compartimos la cotizacion <strong>' . e($num) . '</strong> para tu evento del <strong>' . e(fecha_larga($cot['fecha_evento'])) . '</strong> por un total de <strong>' . e(money($cot['total'], $emp['moneda'])) . '</strong>.</p>'
+                . '<p>Te compartimos la cotizacion <strong>' . e($num) . '</strong> ' . ($cot['fecha_evento'] ? 'para tu evento del <strong>' . e(fecha_larga($cot['fecha_evento'])) . '</strong> ' : '') . 'por un total de <strong>' . e(money($cot['total'], $emp['moneda'])) . '</strong>.</p>'
                 . '<p>Encontraras el detalle en el PDF adjunto. Tambien puedes verla, aceptarla o solicitar cambios en linea:</p>'
                 . '<p style="margin:18px 0"><a href="' . e(enlace_portal($id)) . '" style="background:' . e($c1) . ';color:' . e(color_texto($c1)) . ';padding:11px 18px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">Ver mi cotizacion</a></p>'
                 . '<p style="margin-top:22px;color:#64748b;font-size:13px">' . e($emp['nombre']) . ($emp['telefono'] ? ' · ' . e($emp['telefono']) : '') . ($emp['correo'] ? ' · ' . e($emp['correo']) : '') . '</p>'
@@ -347,7 +367,7 @@ require __DIR__ . '/includes/header.php';
         <div>
           <p class="mb-1 text-xs font-bold uppercase tracking-wider text-slate-400">Evento</p>
           <?php if (!empty($cot['nombre_evento'])): ?><p class="font-extrabold texto-marca"><?= e($cot['nombre_evento']) ?></p><?php endif; ?>
-          <p class="font-bold text-slate-900"><?= e(fecha_larga($cot['fecha_evento'])) ?><?= $cot['hora_evento'] ? ' · ' . e(hora($cot['hora_evento'])) : '' ?></p>
+          <p class="font-bold text-slate-900"><?= $cot['fecha_evento'] ? e(fecha_larga($cot['fecha_evento'])) : 'Fecha por definir' ?><?= $cot['hora_evento'] ? ' · ' . e(hora($cot['hora_evento'])) : '' ?></p>
           <?php if ($cot['lugar_evento']): ?><p class="text-sm text-slate-600"><?= e($cot['lugar_evento']) ?></p><?php endif; ?>
         </div>
       </div>
@@ -447,10 +467,25 @@ require __DIR__ . '/includes/header.php';
         <?php foreach ($mensajes as $m): ?><?= burbuja_chat($m, 'negocio', $cliente['nombre'], $emp['nombre'], fecha($m['created_at'], true)) ?><?php endforeach; ?>
       </div>
       <?php if ($cot['estado'] === 'pendiente'): ?>
-        <form method="post" class="flex items-end gap-2 border-t border-slate-100 p-3 sm:px-5" id="chat-form" data-sin-bloqueo>
+        <?php
+          $waAvisoBase = 'Hola ' . primer_nombre($cliente['nombre']) . ', te respondimos sobre tu cotizacion ' . $numero . ":\n\n";
+          $waAvisoFin = "\n\nPuedes ver la conversacion y responder aqui:\n" . enlace_portal($id);
+          $correoCli = !empty($cliente['correo']) && filter_var($cliente['correo'], FILTER_VALIDATE_EMAIL);
+        ?>
+        <form method="post" class="border-t border-slate-100 p-3 sm:px-5" id="chat-form" data-sin-bloqueo
+              data-wa-tel="<?= e($telWa) ?>" data-wa-inicio="<?= e($waAvisoBase) ?>" data-wa-fin="<?= e($waAvisoFin) ?>">
           <?= csrf_field() ?><input type="hidden" name="accion" value="mensaje_cliente">
-          <textarea name="mensaje" rows="1" maxlength="2000" required class="textarea max-h-32 min-h-[2.75rem] flex-1 resize-none py-2.5" placeholder="Responde al cliente..." id="chat-texto"></textarea>
-          <button class="btn btn-primario h-11 w-11 shrink-0 p-0" aria-label="Enviar"><i data-lucide="send-horizontal"></i></button>
+          <div class="flex items-end gap-2">
+            <textarea name="mensaje" rows="1" maxlength="2000" required class="textarea max-h-32 min-h-[2.75rem] flex-1 resize-none py-2.5" placeholder="Responde al cliente..." id="chat-texto"></textarea>
+            <button class="btn btn-primario h-11 w-11 shrink-0 p-0" aria-label="Enviar"><i data-lucide="send-horizontal"></i></button>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-xs font-semibold text-slate-600">
+            <span class="text-slate-400">Avisar al cliente:</span>
+            <label class="inline-flex cursor-pointer items-center gap-1.5"><input type="checkbox" name="avisar_wa" value="1" class="rounded" checked id="avisar-wa"><i data-lucide="message-circle" class="h-3.5 w-3.5 text-emerald-600"></i>WhatsApp</label>
+            <?php if ($correoCli): ?>
+              <label class="inline-flex cursor-pointer items-center gap-1.5"><input type="checkbox" name="avisar_correo" value="1" class="rounded" checked><i data-lucide="mail" class="h-3.5 w-3.5 text-sky-600"></i>Correo</label>
+            <?php endif; ?>
+          </div>
         </form>
         <p class="border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-500 sm:px-7"><i data-lucide="info" class="mr-1 inline h-3.5 w-3.5 align-[-2px]"></i>Para hacer los cambios, <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="font-semibold texto-marca hover:underline">edita la cotizacion</a>: el cliente vera la version nueva en el mismo enlace.</p>
       <?php endif; ?>
@@ -608,7 +643,7 @@ require __DIR__ . '/includes/header.php';
     <!-- Envio al cliente -->
     <?php
       $msgConEnlace = mensaje_portal_cliente($cot, $emp, $cliente);
-      $msgCliente = $msgConEnlace;
+      $msgCliente = 'Hola ' . $cliente['nombre'] . ', adjunto tu cotización. ¡Excelente día!';
       $enlacePortal = enlace_portal($id);
       $waLink = 'https://wa.me/' . ($telWa ?: '') . '?text=' . rawurlencode($msgConEnlace);
     ?>

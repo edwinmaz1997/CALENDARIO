@@ -226,9 +226,20 @@ document.addEventListener('click', function (ev) {
       if (!texto.value.trim()) return;
       var fd = new FormData(form); fd.append('ajax', '1');
       var btn = form.querySelector('button'); btn.disabled = true;
+      // Aviso por WhatsApp: se abre en el mismo toque (si no, el navegador bloquea la ventana)
+      var chkWa = form.querySelector('#avisar-wa');
+      if (chkWa && chkWa.checked) {
+        var tel = form.getAttribute('data-wa-tel') || '';
+        var txt = (form.getAttribute('data-wa-inicio') || '') + '"' + texto.value.trim() + '"' + (form.getAttribute('data-wa-fin') || '');
+        window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(txt), '_blank');
+      }
       fetch(form.getAttribute('action') || location.href, { method: 'POST', body: fd, credentials: 'same-origin' })
         .then(function (r) { return r.json(); })
-        .then(function (r) { btn.disabled = false; if (r.ok) { texto.value = ''; texto.style.height = ''; agregar(r.mensaje); } })
+        .then(function (r) {
+          btn.disabled = false;
+          if (r.ok) { texto.value = ''; texto.style.height = ''; agregar(r.mensaje); }
+          if (r.correo && r.correo !== 'ok') alert('El mensaje se guardo, pero no se pudo avisar por correo (' + r.correo.replace(/^error: /, '') + ').');
+        })
         .catch(function () { btn.disabled = false; form.submit(); });
     });
   }

@@ -222,7 +222,7 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
     ]);
     $y2 = $bloque(15 + $colW + 6, 'Datos del evento', [
         !empty($cot['nombre_evento']) ? $cot['nombre_evento'] : null,
-        ucfirst(fecha_larga($cot['fecha_evento'])) . ($cot['hora_evento'] ? ', ' . hora($cot['hora_evento']) : ''),
+        ($cot['fecha_evento'] ? ucfirst(fecha_larga($cot['fecha_evento'])) : 'Fecha por definir') . ($cot['hora_evento'] ? ', ' . hora($cot['hora_evento']) : ''),
         $cot['lugar_evento'] ? 'Lugar: ' . $cot['lugar_evento'] : null,
     ]);
     $pdf->SetY(max($y1, $y2) + 7);

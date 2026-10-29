@@ -263,7 +263,7 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
         <div>
           <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Evento</p>
           <?php if (!empty($cot['nombre_evento'])): ?><p class="font-extrabold texto-marca"><?= e($cot['nombre_evento']) ?></p><?php endif; ?>
-          <p class="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><i data-lucide="calendar-days" class="h-4 w-4 text-slate-400"></i><?= e(fecha_larga($cot['fecha_evento'])) ?><?= $cot['hora_evento'] ? ' · ' . e(hora($cot['hora_evento'])) : '' ?></p>
+          <p class="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><i data-lucide="calendar-days" class="h-4 w-4 text-slate-400"></i><?= $cot['fecha_evento'] ? e(fecha_larga($cot['fecha_evento'])) : 'Fecha por definir' ?><?= $cot['hora_evento'] ? ' · ' . e(hora($cot['hora_evento'])) : '' ?></p>
           <?php if (!empty($cot['lugar_evento'])): ?><p class="flex items-center gap-1.5 text-sm text-slate-600"><i data-lucide="map-pin" class="h-4 w-4 text-slate-400"></i><?= e($cot['lugar_evento']) ?></p><?php endif; ?>
         </div>
       </div>
@@ -390,7 +390,7 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
     <p class="mb-4 text-sm text-slate-500">Elige el dia y el horario de tu evento. Al confirmar, la cotizacion queda aceptada y se agenda tu fecha.</p>
     <div class="grid grid-cols-2 gap-3">
       <label class="campo min-w-0"><span>Fecha del evento</span>
-        <input class="input min-w-0" type="date" name="fecha_evento" value="<?= e($cot['fecha_evento'] >= date('Y-m-d') ? $cot['fecha_evento'] : '') ?>" min="<?= date('Y-m-d') ?>" required>
+        <input class="input min-w-0" type="date" name="fecha_evento" value="<?= e($cot['fecha_evento'] && $cot['fecha_evento'] >= date('Y-m-d') ? $cot['fecha_evento'] : '') ?>" min="<?= date('Y-m-d') ?>" required>
       </label>
       <label class="campo min-w-0"><span>Horario</span>
         <input class="input min-w-0" type="time" name="hora_evento" value="<?= e($cot['hora_evento'] ? substr($cot['hora_evento'], 0, 5) : '') ?>" required>

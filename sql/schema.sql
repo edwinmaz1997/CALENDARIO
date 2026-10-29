@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   nombre_evento    VARCHAR(150) NULL,
   usuario_id       INT UNSIGNED NULL,
   fecha            DATE         NOT NULL,
-  fecha_evento     DATE         NOT NULL,
+  fecha_evento     DATE         NULL,
   hora_evento      TIME         NULL,
   lugar_evento     VARCHAR(255) NULL,
   estado           ENUM('pendiente','aceptada','rechazada') NOT NULL DEFAULT 'pendiente',

@@ -168,13 +168,13 @@ require __DIR__ . '/includes/header.php';
         <p class="px-5 py-8 text-center text-sm text-slate-400">No hay cotizaciones pendientes.</p>
       <?php else: ?>
         <ul class="divide-y divide-slate-100">
-          <?php foreach ($pendientes as $p): $vencida = $p['fecha_evento'] < $hoy; ?>
+          <?php foreach ($pendientes as $p): $vencida = $p['fecha_evento'] && $p['fecha_evento'] < $hoy; ?>
             <li>
               <a href="cotizacion_ver.php?id=<?= (int)$p['id'] ?>" class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-semibold text-slate-900"><?= e($p['cliente']) ?></p>
                   <p class="truncate text-xs <?= $vencida ? 'font-semibold text-rose-600' : 'text-slate-500' ?>">
-                    <?= e(numero_cotizacion($p, $emp)) ?> · Evento <?= e(fecha($p['fecha_evento'])) ?><?= $vencida ? ' (ya paso)' : '' ?>
+                    <?= e(numero_cotizacion($p, $emp)) ?> · Evento <?= $p['fecha_evento'] ? e(fecha($p['fecha_evento'])) : 'por definir' ?><?= $vencida ? ' (ya paso)' : '' ?>
                   </p>
                 </div>
                 <div class="shrink-0 text-right">

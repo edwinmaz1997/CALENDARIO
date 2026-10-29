@@ -114,7 +114,7 @@ require __DIR__ . '/includes/header.php';
         </td>
         <td data-label="Cliente" class="font-medium text-slate-800"><?= e($c['cliente']) ?><?php if (!empty($c['nombre_evento'])): ?><span class="block text-xs font-semibold texto-marca"><?= e($c['nombre_evento']) ?></span><?php endif; ?></td>
         <td data-label="Evento">
-          <span class="whitespace-nowrap"><?= e(fecha($c['fecha_evento'])) ?></span>
+          <span class="whitespace-nowrap <?= $c['fecha_evento'] ? '' : 'text-slate-400' ?>"><?= $c['fecha_evento'] ? e(fecha($c['fecha_evento'])) : 'Por definir' ?></span>
           <?php if ($c['hora_evento']): ?><span class="text-xs text-slate-500"><?= e(hora($c['hora_evento'])) ?></span><?php endif; ?>
         </td>
         <td data-label="Total" class="whitespace-nowrap md:text-right">

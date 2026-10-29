@@ -107,8 +107,8 @@ if (is_post()) {
     if (!valid_date($cot['fecha'])) {
         $errores[] = 'La fecha de la cotizacion no es valida.';
     }
-    if (!valid_date($cot['fecha_evento'])) {
-        $errores[] = 'Indica la fecha del evento.';
+    if ($cot['fecha_evento'] !== '' && !valid_date($cot['fecha_evento'])) {
+        $errores[] = 'La fecha del evento no es valida.';
     }
     if ($cot['hora_evento'] !== '' && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $cot['hora_evento'])) {
         $errores[] = 'La hora del evento no es valida.';
@@ -157,7 +157,7 @@ if (is_post()) {
             if ($id) {
                 $huellaAntes = huella_cotizacion($id);
                 db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, subtotal = ?, descuento_id = ?, descuento_nombre = ?, descuento_pct = ?, descuento_monto = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', array_merge([
-                    $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total, $id, $eid,
+                    $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], nullable($cot['fecha_evento']), $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total, $id, $eid,
                 ]));
                 db_exec('DELETE FROM cotizacion_detalle WHERE cotizacion_id = ?', [$id]);
             } else {
@@ -165,7 +165,7 @@ if (is_post()) {
                 db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
                 $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
                 db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', array_merge([
-                    $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total,
+                    $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], nullable($cot['fecha_evento']), $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total,
                 ]));
                 $id = (int)$pdo->lastInsertId();
             }
@@ -385,8 +385,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         <label class="campo sm:col-span-2 lg:col-span-1"><span>Nombre del evento</span>
           <input class="input" name="nombre_evento" value="<?= e($cot['nombre_evento'] ?? '') ?>" maxlength="150" placeholder="Ej: Boda de Ana y Luis, XV años de Sofia">
         </label>
-        <label class="campo"><span>Fecha del evento *</span>
-          <input class="input" type="date" name="fecha_evento" value="<?= e($cot['fecha_evento']) ?>" required>
+        <label class="campo"><span>Fecha del evento <span class="font-normal text-slate-400">(opcional)</span></span>
+          <input class="input" type="date" name="fecha_evento" value="<?= e($cot['fecha_evento']) ?>">
         </label>
         <label class="campo"><span>Hora</span>
           <input class="input" type="time" name="hora_evento" value="<?= e($cot['hora_evento'] ? substr($cot['hora_evento'], 0, 5) : '') ?>">
