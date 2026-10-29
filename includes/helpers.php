@@ -285,8 +285,33 @@ function enlace_publico_cotizacion($cotId)
 /** Huella del contenido de una cotizacion (cliente, fechas, lugar, notas, total y lineas) para detectar cambios */
 function huella_cotizacion($cotId)
 {
-    $c = db_one('SELECT cliente_id, nombre_evento, fecha, fecha_evento, hora_evento, lugar_evento, notas, total FROM cotizaciones WHERE id = ?', [$cotId]);
+    $c = db_one('SELECT cliente_id, nombre_evento, fecha, fecha_evento, hora_evento, lugar_evento, notas, descuento_id, descuento_pct, total FROM cotizaciones WHERE id = ?', [$cotId]);
     $l = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
     return md5(json_encode([$c, $l]));
 }
 
+
+/** Porcentaje sin ceros de sobra: 10.00 -> "10", 12.50 -> "12.5" */
+function pct_num($n)
+{
+    return rtrim(rtrim(number_format((float)$n, 2, '.', ''), '0'), '.');
+}
+
+/** Subtotal de la cotizacion (antes de descuento). Compatible con cotizaciones viejas. */
+function cot_subtotal($cot)
+{
+    return isset($cot['subtotal']) && $cot['subtotal'] !== null ? (float)$cot['subtotal'] : (float)$cot['total'];
+}
+
+/** True si la cotizacion tiene descuento aplicado. */
+function cot_tiene_descuento($cot)
+{
+    return !empty($cot['descuento_pct']) && (float)$cot['descuento_pct'] > 0 && (float)($cot['descuento_monto'] ?? 0) > 0;
+}
+
+/** Texto del descuento: "Descuento: Cliente frecuente del 10%" */
+function cot_texto_descuento($cot)
+{
+    $nombre = trim((string)($cot['descuento_nombre'] ?? ''));
+    return 'Descuento' . ($nombre !== '' ? ': ' . $nombre : '') . ' del ' . pct_num($cot['descuento_pct']) . '%';
+}

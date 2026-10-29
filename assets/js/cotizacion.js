@@ -115,14 +115,37 @@
       var pv = provPorId[+f.querySelector('[name="proveedor_id[]"]').value];
       if (pv) costo += Math.round(sub * (1 - pv.pct / 100) * 100) / 100;
     });
+    // Descuento sobre el total de la venta
+    var subtotal = Math.round(total * 100) / 100, dsc = descuentoSel(), monto = 0;
+    if (dsc && subtotal > 0) monto = Math.round(subtotal * dsc.pct / 100 * 100) / 100;
+    total = Math.round((subtotal - monto) * 100) / 100;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-desc-box]'), function (el) {
+      el.classList.toggle('hidden', !dsc);
+      if (!dsc) return;
+      $('[data-subtotal]', el).textContent = D.moneda + ' ' + fmt(subtotal);
+      $('[data-desc-txt]', el).textContent = 'Descuento: ' + dsc.nombre + ' del ' + pctTxt(dsc.pct) + '%';
+      $('[data-desc-monto]', el).textContent = '- ' + D.moneda + ' ' + fmt(monto);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-desc-movil]'), function (el) {
+      el.classList.toggle('hidden', !dsc);
+      el.textContent = dsc ? '(con ' + pctTxt(dsc.pct) + '% desc.)' : '';
+    });
     Array.prototype.forEach.call(document.querySelectorAll('[data-total]'), function (el) { el.textContent = D.moneda + ' ' + fmt(total); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-costos]'), function (el) {
       el.classList.toggle('hidden', costo <= 0);
       $('[data-costo]', el).textContent = D.moneda + ' ' + fmt(costo);
       $('[data-ganancia]', el).textContent = D.moneda + ' ' + fmt(total - costo);
+      $('[data-ganancia]', el).classList.toggle('text-rose-600', total - costo < 0);
+      $('[data-ganancia]', el).classList.toggle('text-emerald-600', total - costo >= 0);
     });
     vacio.classList.toggle('hidden', filas.length > 0);
   }
+
+  var descPorId = {}, selDesc = document.getElementById('descuento_id');
+  (D.descuentos || []).forEach(function (d) { descPorId[d.id] = d; });
+  function descuentoSel() { return selDesc && selDesc.value ? descPorId[+selDesc.value] || null : null; }
+  function pctTxt(n) { return (Math.round(n * 100) / 100).toString(); }
+  if (selDesc) selDesc.addEventListener('change', function () { recalcular(); });
 
   var provs = D.proveedores || [], provPorId = {};
   provs.forEach(function (p) { provPorId[p.id] = p; });

@@ -49,8 +49,8 @@ if (is_post()) {
         try {
             db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
             $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado)
-                     SELECT empresa_id, ?, cliente_id, nombre_evento, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
+            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado)
+                     SELECT empresa_id, ?, cliente_id, nombre_evento, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
             $nuevo = (int)$pdo->lastInsertId();
             db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden)
                      SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
@@ -327,7 +327,15 @@ require __DIR__ . '/includes/header.php';
             <div class="col-span-4 text-right font-bold text-slate-900 sm:col-span-2"><?= e(money($l['subtotal'], $emp['moneda'])) ?></div>
           </div>
         <?php endforeach; ?>
-        <div class="mt-4 flex justify-end">
+        <?php if (cot_tiene_descuento($cot)): ?>
+          <div class="mt-4 flex justify-end">
+            <div class="w-full max-w-sm space-y-1.5 px-1 text-sm">
+              <div class="flex justify-between gap-4 text-slate-600"><span>Sub total</span><span class="font-bold text-slate-900"><?= e(money(cot_subtotal($cot), $emp['moneda'])) ?></span></div>
+              <div class="flex justify-between gap-4 text-rose-600"><span><?= e(cot_texto_descuento($cot)) ?></span><span class="shrink-0 font-bold">- <?= e(money($cot['descuento_monto'], $emp['moneda'])) ?></span></div>
+            </div>
+          </div>
+        <?php endif; ?>
+        <div class="<?= cot_tiene_descuento($cot) ? 'mt-2' : 'mt-4' ?> flex justify-end">
           <div class="flex items-center gap-6 rounded-xl px-5 py-3" style="background: var(--c2); color: var(--c2-txt)">
             <span class="text-sm font-semibold">TOTAL</span>
             <span class="text-xl font-extrabold"><?= e(money($cot['total'], $emp['moneda'])) ?></span>
@@ -712,7 +720,7 @@ require __DIR__ . '/includes/header.php';
       </ul>
       <div class="mt-3 space-y-1 border-t border-slate-100 pt-3 text-sm">
         <div class="flex justify-between"><span class="text-slate-500">Costo proveedores</span><span class="font-semibold"><?= e(money($provRes['costo'], $emp['moneda'])) ?></span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Tu ganancia</span><span class="font-extrabold text-emerald-600"><?= e(money($cot['total'] - $provRes['costo'], $emp['moneda'])) ?></span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Tu ganancia</span><span class="font-extrabold <?= $cot['total'] - $provRes['costo'] < 0 ? 'text-rose-600' : 'text-emerald-600' ?>"><?= e(money($cot['total'] - $provRes['costo'], $emp['moneda'])) ?></span></div>
       </div>
       <?php if ($cot['estado'] !== 'aceptada'): ?><p class="mt-2 text-[11px] text-amber-700">El adeudo con los proveedores se genera al aceptar la cotizacion.</p><?php endif; ?>
     </div>

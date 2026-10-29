@@ -21,7 +21,6 @@ if ($_emp) {
     $_menu[] = ['productos', 'productos.php', 'package', 'Productos'];
     $_menu[] = ['proveedores', 'proveedores.php', 'truck', 'Proveedores'];
     $_menu[] = ['reportes', 'reportes.php', 'bar-chart-3', 'Reportes'];
-    $_menu[] = ['mi_empresa', 'mi_empresa.php', 'building-2', 'Mi empresa'];
 }
 $_alertas = [];
 if ($_emp) {
@@ -86,6 +85,19 @@ if ($_u && $_u['rol'] === 'admin') {
         <i data-lucide="<?= $m[2] ?>" class="h-5 w-5"></i><span><?= e($m[3]) ?></span>
       </a>
     <?php endforeach; ?>
+
+    <?php if ($_emp):
+      require_once __DIR__ . '/empresa_form.php';
+      $_grupoOn = strpos($activo, 'mi_empresa') === 0; ?>
+      <details class="nav-grupo" <?= $_grupoOn ? 'open' : '' ?>>
+        <summary class="nav-link <?= $_grupoOn ? 'texto-marca' : '' ?>"><i data-lucide="building-2" class="h-5 w-5"></i><span>Mi empresa</span><i data-lucide="chevron-down" class="chevron h-4 w-4"></i></summary>
+        <div class="nav-sub">
+          <?php foreach (mi_empresa_secciones() as $_k => $_s): $on = $activo === 'mi_empresa_' . $_k; ?>
+            <a href="<?= e($_s[0]) ?>" class="nav-link <?= $on ? 'nav-on' : '' ?>"><i data-lucide="<?= $_s[1] ?>"></i><span><?= e($_s[2]) ?></span></a>
+          <?php endforeach; ?>
+        </div>
+      </details>
+    <?php endif; ?>
 
     <?php if ($_menuAdmin): ?>
       <p class="mb-1 mt-6 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">Administracion</p>

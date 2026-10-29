@@ -26,7 +26,7 @@ if ($id) {
 } else {
     $cot = [
         'id' => 0, 'cliente_id' => input_int('cliente_id') ?: null, 'fecha' => date('Y-m-d'),
-        'fecha_evento' => valid_date(input('fecha_evento')) ? input('fecha_evento') : '', 'hora_evento' => '', 'lugar_evento' => '', 'nombre_evento' => '', 'notas' => '',
+        'fecha_evento' => valid_date(input('fecha_evento')) ? input('fecha_evento') : '', 'hora_evento' => '', 'lugar_evento' => '', 'nombre_evento' => '', 'notas' => '', 'descuento_id' => null, 'descuento_nombre' => null, 'descuento_pct' => 0,
     ];
     $lineas = [];
 }
@@ -45,6 +45,26 @@ if (is_post()) {
     $cot['lugar_evento'] = input('lugar_evento');
     $cot['nombre_evento'] = mb_substr(input('nombre_evento'), 0, 150);
     $cot['notas']        = input('notas');
+
+    // Descuento (opcional): se guarda una copia del nombre y % por si luego cambia o se borra
+    $descId = input_int('descuento_id');
+    $descNombre = null;
+    $descPct = 0.0;
+    if ($descId) {
+        $dsc = db_one('SELECT id, nombre, porcentaje FROM descuentos WHERE id = ? AND empresa_id = ?', [$descId, $eid]);
+        if ($dsc) {
+            $descNombre = $dsc['nombre'];
+            $descPct = (float)$dsc['porcentaje'];
+        } elseif ($id && (int)$cot['descuento_id'] === $descId) {
+            $descNombre = $cot['descuento_nombre'];
+            $descPct = (float)$cot['descuento_pct'];
+        } else {
+            $descId = 0;
+        }
+    }
+    $cot['descuento_id'] = $descId ?: null;
+    $cot['descuento_nombre'] = $descNombre;
+    $cot['descuento_pct'] = $descPct;
 
     // Lineas
     $lineas = [];
@@ -122,27 +142,31 @@ if (is_post()) {
     unset($l);
 
     if (!$errores) {
-        $total = 0;
+        $subtotal = 0;
         foreach ($lineas as $l) {
-            $total += round($l['cantidad'] * $l['precio_unitario'], 2);
+            $subtotal += round($l['cantidad'] * $l['precio_unitario'], 2);
         }
+        $subtotal = round($subtotal, 2);
+        $descMonto = $cot['descuento_id'] ? round($subtotal * $cot['descuento_pct'] / 100, 2) : 0;
+        $total = round($subtotal - $descMonto, 2);
+        $descVals = [$subtotal, $cot['descuento_id'], $cot['descuento_id'] ? $cot['descuento_nombre'] : null, $cot['descuento_id'] ? $cot['descuento_pct'] : 0, $descMonto];
         $pdo = db();
         try {
             $pdo->beginTransaction();
             $hora = $cot['hora_evento'] !== '' ? $cot['hora_evento'] : null;
             if ($id) {
                 $huellaAntes = huella_cotizacion($id);
-                db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', [
-                    $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total, $id, $eid,
-                ]);
+                db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, subtotal = ?, descuento_id = ?, descuento_nombre = ?, descuento_pct = ?, descuento_monto = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', array_merge([
+                    $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total, $id, $eid,
+                ]));
                 db_exec('DELETE FROM cotizacion_detalle WHERE cotizacion_id = ?', [$id]);
             } else {
                 // Bloquea la fila de la empresa para generar el correlativo sin duplicados
                 db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
                 $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', [
-                    $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas']), $total,
-                ]);
+                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', array_merge([
+                    $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], $cot['fecha_evento'], $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total,
+                ]));
                 $id = (int)$pdo->lastInsertId();
             }
             $st = $pdo->prepare('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -203,6 +227,12 @@ if (is_post()) {
 $adjuntosExistentes = $cot['id'] ? db_all('SELECT id, titulo, nombre_original, mime FROM cotizacion_adjuntos WHERE cotizacion_id = ? ORDER BY id', [$cot['id']]) : [];
 $clientes = db_all('SELECT id, nombre, nit, telefono FROM clientes WHERE empresa_id = ? AND (activo = 1 OR id = ?) ORDER BY nombre', [$eid, (int)$cot['cliente_id']]);
 $proveedoresJs = array_map(function ($pv) { return ['id' => (int)$pv['id'], 'nombre' => $pv['nombre'], 'pct' => (float)$pv['comision_pct']]; }, proveedores_activos($eid));
+$descuentos = db_all('SELECT id, nombre, porcentaje FROM descuentos WHERE empresa_id = ? AND activo = 1 ORDER BY nombre', [$eid]);
+$descuentosJs = array_map(function ($d) { return ['id' => (int)$d['id'], 'nombre' => $d['nombre'], 'pct' => (float)$d['porcentaje']]; }, $descuentos);
+// Si la cotizacion tiene un descuento que ya no esta activo/existe, se conserva como opcion
+if (!empty($cot['descuento_id']) && !in_array((int)$cot['descuento_id'], array_column($descuentosJs, 'id'), true)) {
+    $descuentosJs[] = ['id' => (int)$cot['descuento_id'], 'nombre' => (string)$cot['descuento_nombre'], 'pct' => (float)$cot['descuento_pct']];
+}
 $productos = db_all('SELECT id, proveedor_id, codigo, nombre, descripcion, unidad, precio FROM productos WHERE empresa_id = ? AND activo = 1 ORDER BY nombre', [$eid]);
 foreach ($productos as &$p) {
     $p['id'] = (int)$p['id'];
@@ -256,6 +286,21 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
           <p class="truncate text-xs text-slate-600" id="cliente_sel_info"></p>
         </div>
         <button type="button" class="rounded-lg p-1.5 text-slate-500 hover:bg-white" id="cliente_quitar" aria-label="Cambiar cliente"><i data-lucide="x" class="h-4 w-4"></i></button>
+      </div>
+
+      <div class="mt-4">
+        <label for="descuento_id" class="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-700"><i data-lucide="percent" class="h-4 w-4 texto-marca"></i>Descuentos</label>
+        <?php if ($descuentosJs): ?>
+          <select class="select" name="descuento_id" id="descuento_id">
+            <option value="">Sin descuento</option>
+            <?php foreach ($descuentosJs as $d): ?>
+              <option value="<?= $d['id'] ?>" <?= (int)$cot['descuento_id'] === $d['id'] ? 'selected' : '' ?>><?= e($d['nombre']) ?> (<?= e(pct_num($d['pct'])) ?>%)</option>
+            <?php endforeach; ?>
+          </select>
+          <p class="ayuda">Se aplica al total de la venta.</p>
+        <?php else: ?>
+          <p class="rounded-xl border border-dashed border-slate-200 px-3 py-2.5 text-sm text-slate-500">No tienes descuentos creados. <a href="descuentos.php" class="font-semibold texto-marca hover:underline">Crear descuentos</a></p>
+        <?php endif; ?>
       </div>
     </section>
 
@@ -370,6 +415,10 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
 
     <!-- Total escritorio -->
     <section class="card hidden overflow-hidden lg:block">
+      <div class="hidden space-y-1 border-b border-slate-100 px-6 py-3 text-sm" data-desc-box>
+        <div class="flex justify-between text-slate-600"><span>Subtotal</span><strong class="text-slate-900" data-subtotal>Q 0.00</strong></div>
+        <div class="flex justify-between gap-3 text-rose-600"><span class="min-w-0" data-desc-txt>Descuento</span><strong class="shrink-0" data-desc-monto>- Q 0.00</strong></div>
+      </div>
       <div class="flex items-center justify-between px-6 py-5" style="background: var(--c1); color: var(--c1-txt)">
         <span class="text-sm font-semibold opacity-90">Total</span>
         <span class="text-2xl font-extrabold" data-total>Q 0.00</span>
@@ -390,7 +439,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
   <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,.06)] lg:hidden" style="padding-bottom: max(.75rem, env(safe-area-inset-bottom))">
     <div class="flex items-center gap-3">
       <div class="min-w-0 flex-1">
-        <p class="text-xs text-slate-500">Total</p>
+        <p class="text-xs text-slate-500">Total <span class="hidden font-semibold text-rose-600" data-desc-movil></span></p>
         <p class="truncate text-xl font-extrabold texto-marca" data-total>Q 0.00</p>
       </div>
       <button type="submit" class="btn btn-primario px-6"><i data-lucide="save"></i>Guardar</button>
@@ -500,6 +549,7 @@ $extraScripts = '<script>window.COT = ' . json_encode([
     'productos' => $productos,
     'lineas'    => $lineasJs,
     'proveedores' => $proveedoresJs,
+    'descuentos'  => $descuentosJs,
     'clienteId' => (int)$cot['cliente_id'] ?: null,
 ], $jsonFlags) . ';</script><script src="assets/js/cotizacion.js?v=' . ASSET_V . '"></script>';
 require __DIR__ . '/includes/footer.php';

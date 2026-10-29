@@ -302,6 +302,26 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
     }
     $pdf->Ln(4);
     $wTot = 75;
+    if (cot_tiene_descuento($cot)) {
+        $wDesc = 110;
+        if ($pdf->GetY() + 30 > $pdf->GetPageHeight() - 24) {
+            $pdf->AddPage();
+        }
+        $pdf->SetTextColor(71, 85, 105);
+        $pdf->SetFont('Helvetica', '', 9.5);
+        $pdf->SetX(15 + $anchoUtil - $wDesc);
+        $pdf->Cell($wDesc - 40, 6, pdf_txt('Sub total'), 0, 0, 'R');
+        $pdf->SetFont('Helvetica', 'B', 9.5);
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->Cell(40, 6, pdf_txt(money(cot_subtotal($cot), $moneda)), 0, 1, 'R');
+        $pdf->SetTextColor(225, 29, 72);
+        $pdf->SetFont('Helvetica', '', 9.5);
+        $pdf->SetX(15 + $anchoUtil - $wDesc);
+        $pdf->Cell($wDesc - 40, 6, pdf_txt(cot_texto_descuento($cot)), 0, 0, 'R');
+        $pdf->SetFont('Helvetica', 'B', 9.5);
+        $pdf->Cell(40, 6, pdf_txt('- ' . money($cot['descuento_monto'], $moneda)), 0, 1, 'R');
+        $pdf->Ln(1.5);
+    }
     $pdf->SetX(15 + $anchoUtil - $wTot);
     $pdf->SetFillColor($c2[0], $c2[1], $c2[2]);
     $pdf->SetTextColor($pdf->c2txt[0], $pdf->c2txt[1], $pdf->c2txt[2]);

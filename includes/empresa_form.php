@@ -18,55 +18,60 @@ function empresa_vacia()
 function guardar_empresa($id, &$datos)
 {
     $errores = [];
-    $datos = array_merge($datos, [
-        'nombre'           => input('nombre'),
-        'nit'              => input('nit'),
-        'direccion'        => input('direccion'),
-        'telefono'         => input('telefono'),
-        'correo'           => input('correo'),
-        'sitio_web'        => input('sitio_web'),
-        'color_primario'   => strtoupper(input('color_primario', '#1E40AF')),
-        'color_secundario' => strtoupper(input('color_secundario', '#F59E0B')),
-        'moneda'           => input('moneda', 'Q'),
-        'prefijo'          => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', input('prefijo', 'COT'))),
-        'pie_cotizacion'   => input('pie_cotizacion'),
-    ]);
-
-    if ($datos['nombre'] === '') {
-        $errores[] = 'El nombre de la empresa es obligatorio.';
-    } elseif (mb_strlen($datos['nombre']) > 150) {
-        $errores[] = 'El nombre es demasiado largo.';
+    $todos = ['nombre', 'nit', 'direccion', 'telefono', 'correo', 'sitio_web', 'color_primario', 'color_secundario', 'moneda', 'prefijo', 'pie_cotizacion'];
+    // Al editar por secciones solo se actualizan los campos que vienen en el formulario
+    $campos = $id ? array_values(array_filter($todos, function ($c) { return array_key_exists($c, $_POST); })) : $todos;
+    $nuevos = [];
+    foreach ($campos as $c) {
+        $nuevos[$c] = input($c);
     }
-    if ($datos['correo'] !== '' && !filter_var($datos['correo'], FILTER_VALIDATE_EMAIL)) {
+    if (isset($nuevos['color_primario'])) {
+        $nuevos['color_primario'] = strtoupper($nuevos['color_primario'] ?: '#1E40AF');
+    }
+    if (isset($nuevos['color_secundario'])) {
+        $nuevos['color_secundario'] = strtoupper($nuevos['color_secundario'] ?: '#F59E0B');
+    }
+    if (isset($nuevos['prefijo'])) {
+        $nuevos['prefijo'] = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $nuevos['prefijo']));
+    }
+    $datos = array_merge($datos, $nuevos);
+
+    if (in_array('nombre', $campos, true)) {
+        if ($datos['nombre'] === '') {
+            $errores[] = 'El nombre de la empresa es obligatorio.';
+        } elseif (mb_strlen($datos['nombre']) > 150) {
+            $errores[] = 'El nombre es demasiado largo.';
+        }
+    }
+    if (in_array('correo', $campos, true) && $datos['correo'] !== '' && !filter_var($datos['correo'], FILTER_VALIDATE_EMAIL)) {
         $errores[] = 'El correo no es valido.';
     }
-    if (!valid_color($datos['color_primario'])) {
+    if (in_array('color_primario', $campos, true) && !valid_color($datos['color_primario'])) {
         $errores[] = 'Color primario no valido.';
     }
-    if (!valid_color($datos['color_secundario'])) {
+    if (in_array('color_secundario', $campos, true) && !valid_color($datos['color_secundario'])) {
         $errores[] = 'Color secundario no valido.';
     }
-    if ($datos['moneda'] === '' || mb_strlen($datos['moneda']) > 5) {
+    if (in_array('moneda', $campos, true) && ($datos['moneda'] === '' || mb_strlen($datos['moneda']) > 5)) {
         $errores[] = 'El simbolo de moneda debe tener entre 1 y 5 caracteres.';
     }
-    if ($datos['prefijo'] === '' || strlen($datos['prefijo']) > 10) {
+    if (in_array('prefijo', $campos, true) && ($datos['prefijo'] === '' || strlen($datos['prefijo']) > 10)) {
         $errores[] = 'El prefijo debe tener entre 1 y 10 letras o numeros.';
     }
     if ($errores) {
         return [null, $errores];
     }
 
-    $campos = ['nombre', 'nit', 'direccion', 'telefono', 'correo', 'sitio_web', 'color_primario', 'color_secundario', 'moneda', 'prefijo', 'pie_cotizacion'];
     $valores = [];
     foreach ($campos as $c) {
         $valores[] = in_array($c, ['nombre', 'color_primario', 'color_secundario', 'moneda', 'prefijo'], true) ? $datos[$c] : nullable($datos[$c]);
     }
 
-    if ($id) {
+    if ($id && $campos) {
         $sets = implode(', ', array_map(function ($c) { return "$c = ?"; }, $campos));
         $valores[] = $id;
         db_exec("UPDATE empresas SET $sets WHERE id = ?", $valores);
-    } else {
+    } elseif (!$id) {
         $ph = implode(', ', array_fill(0, count($campos), '?'));
         db_exec('INSERT INTO empresas (' . implode(', ', $campos) . ") VALUES ($ph)", $valores);
         $id = (int)db()->lastInsertId();
@@ -93,9 +98,11 @@ function guardar_empresa($id, &$datos)
 }
 
 /** Imprime el formulario. $accion es la URL de envio. */
-function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
+function render_form_empresa($emp, $accion, $cancelar, array $errores = [], $seccion = null)
 {
     $logo = logo_url($emp);
+    $ver = function ($s) use ($seccion) { return $seccion === null || $seccion === $s; };
+    $completo = $seccion === null;
     ?>
     <?php if ($errores): ?>
       <div class="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -103,9 +110,10 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
       </div>
     <?php endif; ?>
 
-    <form method="post" action="<?= e($accion) ?>" enctype="multipart/form-data" class="grid gap-5 lg:grid-cols-3">
+    <form method="post" action="<?= e($accion) ?>" enctype="multipart/form-data" class="<?= $completo ? 'grid gap-5 lg:grid-cols-3' : 'max-w-3xl space-y-5' ?>">
       <?= csrf_field() ?>
-      <div class="space-y-5 lg:col-span-2">
+      <div class="space-y-5 <?= $completo ? 'lg:col-span-2' : ($ver('marca') ? 'hidden' : '') ?>">
+        <?php if ($ver('datos')): ?>
         <section class="card p-5 sm:p-6">
           <h2 class="mb-4 text-base font-bold text-slate-900">Datos generales</h2>
           <div class="grid gap-4 sm:grid-cols-2">
@@ -130,7 +138,9 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
             </label>
           </div>
         </section>
+        <?php endif; ?>
 
+        <?php if ($ver('cotizaciones')): ?>
         <section class="card p-5 sm:p-6">
           <h2 class="mb-4 text-base font-bold text-slate-900">Cotizaciones</h2>
           <div class="grid gap-4 sm:grid-cols-2">
@@ -146,9 +156,11 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
             </label>
           </div>
         </section>
+        <?php endif; ?>
       </div>
 
-      <div class="space-y-5">
+      <div class="<?= $completo ? 'space-y-5' : ($ver('marca') ? 'grid gap-5 sm:grid-cols-2' : 'hidden') ?>">
+        <?php if ($ver('marca')): ?>
         <section class="card p-5 sm:p-6">
           <h2 class="mb-4 text-base font-bold text-slate-900">Logo</h2>
           <div class="mb-4 flex h-36 items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-3">
@@ -180,10 +192,13 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
             </div>
           </div>
         </section>
+        <?php endif; ?>
+      </div>
 
-        <div class="flex gap-3">
-          <a href="<?= e($cancelar) ?>" class="btn btn-claro flex-1">Cancelar</a>
-          <button class="btn btn-primario flex-1" type="submit"><i data-lucide="save"></i>Guardar</button>
+      <div class="<?= $completo ? 'lg:col-start-3' : '' ?>">
+        <div class="flex gap-3 <?= $completo ? '' : 'sm:justify-end' ?>">
+          <a href="<?= e($cancelar) ?>" class="btn btn-claro flex-1 <?= $completo ? '' : 'sm:flex-none' ?>">Cancelar</a>
+          <button class="btn btn-primario flex-1 <?= $completo ? '' : 'sm:flex-none' ?>" type="submit"><i data-lucide="save"></i>Guardar</button>
         </div>
       </div>
     </form>
@@ -191,11 +206,11 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
     <script>
     (function () {
       function txt(hex) { var r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16); return (0.299*r+0.587*g+0.114*b)/255 > 0.6 ? '#111827' : '#FFFFFF'; }
-      function bind(inp, el) { inp.addEventListener('input', function () { el.style.background = inp.value; el.style.color = txt(inp.value); }); }
+      function bind(inp, el) { if (!inp) return; inp.addEventListener('input', function () { el.style.background = inp.value; el.style.color = txt(inp.value); }); }
       bind(document.getElementById('c1'), document.getElementById('prev-c1'));
       bind(document.getElementById('c2'), document.getElementById('prev-c2'));
       var li = document.getElementById('logo-input');
-      li.addEventListener('change', function () {
+      if (li) li.addEventListener('change', function () {
         var f = li.files[0]; if (!f) return;
         var img = document.getElementById('logo-preview');
         img.src = URL.createObjectURL(f); img.classList.remove('hidden');
@@ -203,5 +218,30 @@ function render_form_empresa($emp, $accion, $cancelar, array $errores = [])
       });
     })();
     </script>
+    <?php
+}
+
+/** Apartados de "Mi empresa": clave => [url, icono, titulo] */
+function mi_empresa_secciones()
+{
+    return [
+        'datos'        => ['mi_empresa.php?s=datos', 'building-2', 'Datos generales'],
+        'marca'        => ['mi_empresa.php?s=marca', 'palette', 'Logo y colores'],
+        'cotizaciones' => ['mi_empresa.php?s=cotizaciones', 'file-cog', 'Cotizaciones'],
+        'descuentos'   => ['descuentos.php', 'percent', 'Descuentos'],
+    ];
+}
+
+/** Pestanas superiores de "Mi empresa" (comodas en movil). */
+function render_tabs_mi_empresa($actual)
+{
+    ?>
+    <nav class="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" aria-label="Apartados de mi empresa">
+      <?php foreach (mi_empresa_secciones() as $k => $s): $on = $k === $actual; ?>
+        <a href="<?= e($s[0]) ?>" class="flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-semibold transition <?= $on ? 'border-transparent bg-marca text-on-marca' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' ?>">
+          <i data-lucide="<?= $s[1] ?>" class="h-4 w-4"></i><?= e($s[2]) ?>
+        </a>
+      <?php endforeach; ?>
+    </nav>
     <?php
 }
