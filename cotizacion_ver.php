@@ -416,6 +416,19 @@ require __DIR__ . '/includes/header.php';
           <p class="mt-6 whitespace-pre-line border-t border-slate-100 pt-4 text-xs text-slate-500"><?= e($emp['pie_cotizacion']) ?></p>
         <?php endif; ?>
       </div>
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3 sm:px-7">
+        <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-claro btn-sm" title="Ver PDF"><i data-lucide="eye"></i><span class="hidden sm:inline">Ver PDF</span></a>
+        <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-claro btn-sm" title="Descargar PDF"><i data-lucide="file-down"></i><span class="hidden sm:inline">Descargar</span></a>
+        <?php if ($cot['estado'] === 'pendiente'): ?>
+          <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro btn-sm" title="Editar"><i data-lucide="pencil"></i><span class="hidden sm:inline">Editar</span></a>
+        <?php endif; ?>
+        <?php if ($cot['estado'] === 'aceptada'): ?>
+          <a href="liquidacion.php?id=<?= (int)$id ?>" class="btn btn-claro btn-sm" title="Reporte de liquidacion"><i data-lucide="clipboard-check"></i><span class="hidden sm:inline">Liquidacion</span></a>
+        <?php endif; ?>
+        <form method="post" class="contents"><?= csrf_field() ?><input type="hidden" name="accion" value="duplicar">
+          <button class="btn btn-claro btn-sm" title="Duplicar"><i data-lucide="copy"></i><span class="hidden sm:inline">Duplicar</span></button>
+        </form>
+      </div>
     </article>
 
     <!-- Conversacion con el cliente -->
@@ -589,49 +602,6 @@ require __DIR__ . '/includes/header.php';
 
   <!-- Acciones -->
   <aside class="min-w-0 space-y-4">
-    <details id="opciones" class="desplegable card overflow-hidden" data-abierto-pc>
-      <summary class="flex cursor-pointer select-none items-center gap-3 px-5 py-4 hover:bg-slate-50 sm:px-6">
-        <i data-lucide="sliders-horizontal" class="h-5 w-5 shrink-0 texto-marca"></i>
-        <span class="text-base font-bold text-slate-900">Opciones</span>
-        <i data-lucide="chevron-down" class="chevron ml-auto h-5 w-5 shrink-0 text-slate-400"></i>
-      </summary>
-    <div class="space-y-2 border-t border-slate-100 p-5">
-      <a href="cotizacion_pdf.php?id=<?= (int)$id ?>" data-visor="pdf" data-titulo="<?= e($numero) ?>" data-descarga="cotizacion_pdf.php?id=<?= (int)$id ?>&amp;descargar=1" class="btn btn-primario w-full"><i data-lucide="file-text"></i>Ver PDF</a>
-      <a href="cotizacion_pdf.php?id=<?= (int)$id ?>&descargar=1" class="btn btn-claro w-full"><i data-lucide="download"></i>Descargar PDF</a>
-      <?php if ($cot['estado'] === 'pendiente'): ?>
-        <a href="cotizacion_form.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="pencil"></i>Editar</a>
-      <?php endif; ?>
-      <?php if ($cot['estado'] === 'aceptada'): ?>
-        <a href="liquidacion.php?id=<?= (int)$id ?>" class="btn btn-claro w-full"><i data-lucide="clipboard-check"></i>Reporte de liquidacion</a>
-      <?php endif; ?>
-      <div class="grid grid-cols-2 gap-2">
-        <a href="#pagos" class="btn btn-claro"><i data-lucide="wallet"></i>Registrar pago</a>
-        <a href="#adjuntos" class="btn btn-claro" data-abrir="adjuntos"><i data-lucide="paperclip"></i>Adjuntos (<?= count($adjuntos) ?>)</a>
-      </div>
-      <form method="post"><?= csrf_field() ?><input type="hidden" name="accion" value="duplicar">
-        <button class="btn btn-claro w-full"><i data-lucide="copy"></i>Duplicar</button>
-      </form>
-    </div>
-
-    <a href="#pagos" class="block border-t border-slate-100 p-5 transition hover:bg-slate-50">
-      <div class="flex items-center justify-between gap-3">
-        <h3 class="text-sm font-bold text-slate-900">Pagos</h3>
-        <?= badge_pago($pagosRes) ?>
-      </div>
-      <div class="mt-3 flex items-end justify-between gap-3">
-        <div>
-          <p class="text-xs text-slate-500">Pagado</p>
-          <p class="font-bold text-emerald-600"><?= e(money($pagosRes['pagado'], $emp['moneda'])) ?></p>
-        </div>
-        <div class="text-right">
-          <p class="text-xs text-slate-500">Pendiente</p>
-          <p class="text-lg font-extrabold <?= $pagosRes['saldo'] > 0 ? 'text-rose-600' : 'text-slate-900' ?>"><?= e(money(max(0, $pagosRes['saldo']), $emp['moneda'])) ?></p>
-        </div>
-      </div>
-      <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: <?= (int)$pagosRes['porcentaje'] ?>%"></div></div>
-    </a>
-    </details>
-
     <!-- Envio al cliente -->
     <?php
       $msgConEnlace = mensaje_portal_cliente($cot, $emp, $cliente);
