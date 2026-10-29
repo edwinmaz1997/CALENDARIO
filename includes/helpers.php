@@ -316,12 +316,12 @@ function cot_texto_descuento($cot)
     return 'Descuento' . ($nombre !== '' ? ': ' . $nombre : '') . ' del ' . pct_num($cot['descuento_pct']) . '%';
 }
 
-/** Nombre del archivo PDF: "Cotización EVT-00004 - María José Pérez - 4444-1111.pdf" */
+/** Nombre del archivo PDF: "EVT-00004 - María José Pérez - 4444-1111.pdf" */
 function nombre_pdf_cotizacion($cot, $emp, $cliente)
 {
     $nombre = trim(preg_replace('/\s+/', ' ', (string)($cliente['nombre'] ?? '')));
     $tel = trim(preg_replace('/[^0-9+\- ]/', '', (string)($cliente['telefono'] ?? '')));
-    $base = 'Cotización ' . numero_cotizacion($cot, $emp) . ($nombre !== '' ? ' - ' . $nombre : '') . ($tel !== '' ? ' - ' . $tel : '');
+    $base = numero_cotizacion($cot, $emp) . ($nombre !== '' ? ' - ' . $nombre : '') . ($tel !== '' ? ' - ' . $tel : '');
     $base = preg_replace('#[\\\\/:*?"<>|\x00-\x1F]+#u', '', $base);
     return mb_substr($base, 0, 120) . '.pdf';
 }
