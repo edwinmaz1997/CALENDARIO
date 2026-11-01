@@ -96,11 +96,11 @@ if (is_post()) {
         try {
             db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
             $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado)
-                     SELECT empresa_id, ?, cliente_id, nombre_evento, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
+            db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_lineas, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado)
+                     SELECT empresa_id, ?, cliente_id, nombre_evento, ?, CURDATE(), fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_lineas, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, \'pendiente\' FROM cotizaciones WHERE id = ?', [$corr, usuario_actual()['id'], $id]);
             $nuevo = (int)$pdo->lastInsertId();
-            db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden)
-                     SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
+            db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal, comision_pct, costo_proveedor, orden)
+                     SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
             $pdo->commit();
             $origen = imagen_cot_path($eid, $cot['imagen']);
             if ($origen) {
@@ -400,21 +400,23 @@ require __DIR__ . '/includes/header.php';
             <div class="col-span-12 sm:col-span-6">
               <p class="font-semibold text-slate-800"><?= e($l['descripcion']) ?></p>
               <?php if ($l['unidad']): ?><p class="text-xs text-slate-400"><?= e($l['unidad']) ?></p><?php endif; ?>
+              <?php if ($dTxt = linea_texto_descuento($l, $emp['moneda'])): ?><p class="text-xs font-semibold text-rose-600"><?= e($dTxt) ?></p><?php endif; ?>
             </div>
             <div class="col-span-4 text-slate-600 sm:col-span-2 sm:text-right"><span class="sm:hidden">Cant: </span><?= e(rtrim(rtrim(number_format((float)$l['cantidad'], 2, '.', ','), '0'), '.')) ?></div>
             <div class="col-span-4 text-slate-600 sm:col-span-2 sm:text-right"><span class="sm:hidden">x </span><?= e(money($l['precio_unitario'], $emp['moneda'])) ?></div>
             <div class="col-span-4 text-right font-bold text-slate-900 sm:col-span-2"><?= e(money($l['subtotal'], $emp['moneda'])) ?></div>
           </div>
         <?php endforeach; ?>
-        <?php if (cot_tiene_descuento($cot)): ?>
+        <?php $filasRes = cot_filas_resumen($cot); if ($filasRes): ?>
           <div class="mt-4 flex justify-end">
             <div class="w-full max-w-sm space-y-1.5 px-1 text-sm">
-              <div class="flex justify-between gap-4 text-slate-600"><span>Sub total</span><span class="font-bold text-slate-900"><?= e(money(cot_subtotal($cot), $emp['moneda'])) ?></span></div>
-              <div class="flex justify-between gap-4 text-rose-600"><span><?= e(cot_texto_descuento($cot)) ?></span><span class="shrink-0 font-bold">- <?= e(money($cot['descuento_monto'], $emp['moneda'])) ?></span></div>
+              <?php foreach ($filasRes as $fr): ?>
+                <div class="flex justify-between gap-4 <?= $fr[2] === 'descuento' ? 'text-rose-600' : 'text-slate-600' ?>"><span><?= e($fr[0]) ?></span><span class="shrink-0 font-bold <?= $fr[2] === 'descuento' ? '' : 'text-slate-900' ?>"><?= $fr[2] === 'descuento' ? '- ' : '' ?><?= e(money($fr[1], $emp['moneda'])) ?></span></div>
+              <?php endforeach; ?>
             </div>
           </div>
         <?php endif; ?>
-        <div class="<?= cot_tiene_descuento($cot) ? 'mt-2' : 'mt-4' ?> flex justify-end">
+        <div class="<?= $filasRes ? 'mt-2' : 'mt-4' ?> flex justify-end">
           <div class="flex items-center gap-6 rounded-xl px-5 py-3" style="background: var(--c2); color: var(--c2-txt)">
             <span class="text-sm font-semibold">TOTAL</span>
             <span class="text-xl font-extrabold"><?= e(money($cot['total'], $emp['moneda'])) ?></span>

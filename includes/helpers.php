@@ -286,7 +286,7 @@ function enlace_publico_cotizacion($cotId)
 function huella_cotizacion($cotId)
 {
     $c = db_one('SELECT cliente_id, nombre_evento, fecha, fecha_evento, hora_evento, lugar_evento, notas, descuento_id, descuento_pct, total FROM cotizaciones WHERE id = ?', [$cotId]);
-    $l = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
+    $l = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
     return md5(json_encode([$c, $l]));
 }
 
@@ -324,4 +324,34 @@ function nombre_pdf_cotizacion($cot, $emp, $cliente)
     $base = numero_cotizacion($cot, $emp) . ($nombre !== '' ? ' - ' . $nombre : '') . ($tel !== '' ? ' - ' . $tel : '');
     $base = preg_replace('#[\\\\/:*?"<>|\x00-\x1F]+#u', '', $base);
     return mb_substr($base, 0, 120) . '.pdf';
+}
+
+/**
+ * Filas del resumen de totales antes del TOTAL: [[texto, monto, 'normal'|'descuento'], ...]
+ * Vacio si la cotizacion no tiene ningun descuento.
+ */
+function cot_filas_resumen($cot)
+{
+    $descLineas = (float)($cot['descuento_lineas'] ?? 0);
+    $global = cot_tiene_descuento($cot);
+    if ($descLineas <= 0.004 && !$global) {
+        return [];
+    }
+    $filas = [['Sub total', cot_subtotal($cot) + $descLineas, 'normal']];
+    if ($descLineas > 0.004) {
+        $filas[] = ['Descuento en productos', $descLineas, 'descuento'];
+    }
+    if ($global) {
+        $filas[] = [cot_texto_descuento($cot), (float)$cot['descuento_monto'], 'descuento'];
+    }
+    return $filas;
+}
+
+/** Texto del descuento de una linea: "Descuento 10% (- Q 40.00)" o '' */
+function linea_texto_descuento($l, $moneda)
+{
+    if (empty($l['descuento_pct']) || (float)$l['descuento_pct'] <= 0) {
+        return '';
+    }
+    return 'Descuento ' . pct_num($l['descuento_pct']) . '% (- ' . money($l['descuento_monto'], $moneda) . ')';
 }

@@ -107,28 +107,40 @@
   var cont = $('#lineas'), tpl = $('#tpl-linea'), vacio = $('#lineas-vacio');
 
   function recalcular() {
-    var total = 0, costo = 0, filas = cont.querySelectorAll('.linea-item');
+    var total = 0, costo = 0, descLineas = 0, filas = cont.querySelectorAll('.linea-item');
     Array.prototype.forEach.call(filas, function (f) {
-      var sub = Math.round(num($('[data-cant]', f).value) * num($('[data-precio]', f).value) * 100) / 100;
+      var bruto = Math.round(num($('[data-cant]', f).value) * num($('[data-precio]', f).value) * 100) / 100;
+      var pctL = Math.min(100, Math.max(0, num($('[data-desc-linea]', f).value)));
+      var dL = Math.round(bruto * pctL / 100 * 100) / 100, sub = Math.round((bruto - dL) * 100) / 100;
       $('[data-sub]', f).textContent = fmt(sub);
-      total += sub;
+      var sb = $('[data-sub-bruto]', f);
+      sb.textContent = fmt(bruto); sb.classList.toggle('hidden', dL <= 0);
+      $('.linea-desc', f).classList.toggle('activo', pctL > 0);
+      total += sub; descLineas += dL;
       var pv = provPorId[+f.querySelector('[name="proveedor_id[]"]').value];
-      if (pv) costo += Math.round(sub * (1 - pv.pct / 100) * 100) / 100;
+      if (pv) costo += Math.round(bruto * (1 - pv.pct / 100) * 100) / 100;
     });
+    descLineas = Math.round(descLineas * 100) / 100;
     // Descuento sobre el total de la venta
     var subtotal = Math.round(total * 100) / 100, dsc = descuentoSel(), monto = 0;
     if (dsc && subtotal > 0) monto = Math.round(subtotal * dsc.pct / 100 * 100) / 100;
     total = Math.round((subtotal - monto) * 100) / 100;
+    var hayDesc = !!dsc || descLineas > 0;
     Array.prototype.forEach.call(document.querySelectorAll('[data-desc-box]'), function (el) {
-      el.classList.toggle('hidden', !dsc);
-      if (!dsc) return;
-      $('[data-subtotal]', el).textContent = D.moneda + ' ' + fmt(subtotal);
-      $('[data-desc-txt]', el).textContent = 'Descuento: ' + dsc.nombre + ' del ' + pctTxt(dsc.pct) + '%';
-      $('[data-desc-monto]', el).textContent = '- ' + D.moneda + ' ' + fmt(monto);
+      el.classList.toggle('hidden', !hayDesc);
+      if (!hayDesc) return;
+      $('[data-subtotal]', el).textContent = D.moneda + ' ' + fmt(subtotal + descLineas);
+      $('[data-desc-lineas-fila]', el).classList.toggle('hidden', descLineas <= 0);
+      $('[data-desc-lineas]', el).textContent = '- ' + D.moneda + ' ' + fmt(descLineas);
+      $('[data-desc-global-fila]', el).classList.toggle('hidden', !dsc);
+      if (dsc) {
+        $('[data-desc-txt]', el).textContent = 'Descuento: ' + dsc.nombre + ' del ' + pctTxt(dsc.pct) + '%';
+        $('[data-desc-monto]', el).textContent = '- ' + D.moneda + ' ' + fmt(monto);
+      }
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-desc-movil]'), function (el) {
-      el.classList.toggle('hidden', !dsc);
-      el.textContent = dsc ? '(con ' + pctTxt(dsc.pct) + '% desc.)' : '';
+      el.classList.toggle('hidden', !hayDesc);
+      el.textContent = hayDesc ? '(ahorro ' + D.moneda + ' ' + fmt(descLineas + monto) + ')' : '';
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-total]'), function (el) { el.textContent = D.moneda + ' ' + fmt(total); });
     Array.prototype.forEach.call(document.querySelectorAll('[data-costos]'), function (el) {
@@ -194,6 +206,7 @@
     $('[data-desc]', f).value = l.descripcion || '';
     $('[data-cant]', f).value = l.cantidad != null ? l.cantidad : 1;
     $('[data-precio]', f).value = (l.precio != null ? num(l.precio) : 0).toFixed(2);
+    $('[data-desc-linea]', f).value = l.descuento ? pctTxt(l.descuento) : '';
     $('[data-desc]', f).title = l.producto_id ? ('Producto del catalogo' + (l.unidad ? ' · ' + l.unidad : '')) : 'Linea libre';
     var provSel = l.proveedor_id && provPorId[l.proveedor_id] ? l.proveedor_id : null;
     f.querySelector('[name="proveedor_id[]"]').value = provSel || '';
@@ -204,7 +217,7 @@
     if (enfocar) { var el = enfocar === 'desc' ? $('[data-desc]', f) : $('[data-cant]', f); el.focus(); el.select(); }
   }
 
-  cont.addEventListener('input', function (ev) { if (ev.target.matches('[data-cant],[data-precio]')) recalcular(); });
+  cont.addEventListener('input', function (ev) { if (ev.target.matches('[data-cant],[data-precio],[data-desc-linea]')) recalcular(); });
   cont.addEventListener('change', function (ev) {
     if (!ev.target.matches('[data-prov]')) return;
     ev.target.closest('.linea-item').querySelector('[name="proveedor_id[]"]').value = ev.target.value;

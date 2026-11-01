@@ -251,7 +251,8 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
     foreach ($lineas as $i => $l) {
         $pdf->SetFont('Helvetica', '', 9);
         $nl = $pdf->NbLines($cols[1][1], pdf_txt($l['descripcion']));
-        $h = max(8, $nl * 4.6 + ($l['unidad'] ? 4 : 0) + 3);
+        $dTxt = linea_texto_descuento($l, $emp['moneda']);
+        $h = max(8, $nl * 4.6 + ($l['unidad'] ? 4 : 0) + ($dTxt ? 4 : 0) + 3);
 
         if ($pdf->GetY() + $h > $pdf->GetPageHeight() - 24) {
             $pdf->AddPage();
@@ -276,7 +277,13 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
             $pdf->SetX($xDesc);
             $pdf->SetFont('Helvetica', '', 7.5);
             $pdf->SetTextColor(100, 116, 139);
-            $pdf->Cell($cols[1][1], 4, pdf_txt($l['unidad']), 0, 0, 'L');
+            $pdf->Cell($cols[1][1], 4, pdf_txt($l['unidad']), 0, 1, 'L');
+        }
+        if ($dTxt) {
+            $pdf->SetX($xDesc);
+            $pdf->SetFont('Helvetica', 'B', 7.5);
+            $pdf->SetTextColor(225, 29, 72);
+            $pdf->Cell($cols[1][1], 4, pdf_txt($dTxt), 0, 0, 'L');
         }
 
         $pdf->SetXY($xDesc + $cols[1][1], $y0);
@@ -302,24 +309,24 @@ function construir_pdf_cotizacion($cot, $emp, $cliente, $lineas)
     }
     $pdf->Ln(4);
     $wTot = 75;
-    if (cot_tiene_descuento($cot)) {
+    $filasRes = cot_filas_resumen($cot);
+    if ($filasRes) {
         $wDesc = 110;
-        if ($pdf->GetY() + 30 > $pdf->GetPageHeight() - 24) {
+        if ($pdf->GetY() + 8 + count($filasRes) * 6 + 12 > $pdf->GetPageHeight() - 24) {
             $pdf->AddPage();
         }
-        $pdf->SetTextColor(71, 85, 105);
-        $pdf->SetFont('Helvetica', '', 9.5);
-        $pdf->SetX(15 + $anchoUtil - $wDesc);
-        $pdf->Cell($wDesc - 40, 6, pdf_txt('Sub total'), 0, 0, 'R');
-        $pdf->SetFont('Helvetica', 'B', 9.5);
-        $pdf->SetTextColor(15, 23, 42);
-        $pdf->Cell(40, 6, pdf_txt(money(cot_subtotal($cot), $moneda)), 0, 1, 'R');
-        $pdf->SetTextColor(225, 29, 72);
-        $pdf->SetFont('Helvetica', '', 9.5);
-        $pdf->SetX(15 + $anchoUtil - $wDesc);
-        $pdf->Cell($wDesc - 40, 6, pdf_txt(cot_texto_descuento($cot)), 0, 0, 'R');
-        $pdf->SetFont('Helvetica', 'B', 9.5);
-        $pdf->Cell(40, 6, pdf_txt('- ' . money($cot['descuento_monto'], $moneda)), 0, 1, 'R');
+        foreach ($filasRes as $fr) {
+            $esDesc = $fr[2] === 'descuento';
+            $esDesc ? $pdf->SetTextColor(225, 29, 72) : $pdf->SetTextColor(71, 85, 105);
+            $pdf->SetFont('Helvetica', '', 9.5);
+            $pdf->SetX(15 + $anchoUtil - $wDesc);
+            $pdf->Cell($wDesc - 40, 6, pdf_txt($fr[0]), 0, 0, 'R');
+            $pdf->SetFont('Helvetica', 'B', 9.5);
+            if (!$esDesc) {
+                $pdf->SetTextColor(15, 23, 42);
+            }
+            $pdf->Cell(40, 6, pdf_txt(($esDesc ? '- ' : '') . money($fr[1], $moneda)), 0, 1, 'R');
+        }
         $pdf->Ln(1.5);
     }
     $pdf->SetX(15 + $anchoUtil - $wTot);

@@ -22,7 +22,7 @@ if ($id) {
         flash('aviso', 'Solo se pueden editar cotizaciones pendientes. Regresala a pendiente para modificarla.');
         redirect('cotizacion_ver.php?id=' . $id);
     }
-    $lineas = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
+    $lineas = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
 } else {
     $cot = [
         'id' => 0, 'cliente_id' => input_int('cliente_id') ?: null, 'fecha' => date('Y-m-d'),
@@ -74,6 +74,7 @@ if (is_post()) {
     $unis = $_POST['unidad'] ?? [];
     $cants = $_POST['cantidad'] ?? [];
     $precios = $_POST['precio'] ?? [];
+    $descsLinea = $_POST['descuento_linea'] ?? [];
     $n = is_array($descs) ? count($descs) : 0;
     for ($i = 0; $i < $n; $i++) {
         $d = trim((string)($descs[$i] ?? ''));
@@ -91,7 +92,12 @@ if (is_post()) {
         if (!is_numeric($p) || (float)$p < 0) {
             $errores[] = 'El precio de la linea ' . ($i + 1) . ' no es valido.';
         }
+        $dl = str_replace([',', '%'], ['.', ''], trim((string)($descsLinea[$i] ?? '')));
+        if ($dl !== '' && (!is_numeric($dl) || (float)$dl < 0 || (float)$dl > 100)) {
+            $errores[] = 'El descuento de la linea ' . ($i + 1) . ' debe ser un porcentaje entre 0 y 100.';
+        }
         $lineas[] = [
+            'descuento_pct'   => is_numeric($dl) ? round(min(100, max(0, (float)$dl)), 2) : 0,
             'producto_id'     => (int)($pids[$i] ?? 0) ?: null,
             'proveedor_id'    => (int)($provIds[$i] ?? 0) ?: null,
             'descripcion'     => mb_substr($d, 0, 255),
@@ -143,20 +149,25 @@ if (is_post()) {
 
     if (!$errores) {
         $subtotal = 0;
+        $descLineas = 0;
         foreach ($lineas as $l) {
-            $subtotal += round($l['cantidad'] * $l['precio_unitario'], 2);
+            $bruto = round($l['cantidad'] * $l['precio_unitario'], 2);
+            $dLin = round($bruto * $l['descuento_pct'] / 100, 2);
+            $descLineas += $dLin;
+            $subtotal += $bruto - $dLin;
         }
         $subtotal = round($subtotal, 2);
+        $descLineas = round($descLineas, 2);
         $descMonto = $cot['descuento_id'] ? round($subtotal * $cot['descuento_pct'] / 100, 2) : 0;
         $total = round($subtotal - $descMonto, 2);
-        $descVals = [$subtotal, $cot['descuento_id'], $cot['descuento_id'] ? $cot['descuento_nombre'] : null, $cot['descuento_id'] ? $cot['descuento_pct'] : 0, $descMonto];
+        $descVals = [$subtotal, $descLineas, $cot['descuento_id'], $cot['descuento_id'] ? $cot['descuento_nombre'] : null, $cot['descuento_id'] ? $cot['descuento_pct'] : 0, $descMonto];
         $pdo = db();
         try {
             $pdo->beginTransaction();
             $hora = $cot['hora_evento'] !== '' ? $cot['hora_evento'] : null;
             if ($id) {
                 $huellaAntes = huella_cotizacion($id);
-                db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, subtotal = ?, descuento_id = ?, descuento_nombre = ?, descuento_pct = ?, descuento_monto = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', array_merge([
+                db_exec('UPDATE cotizaciones SET cliente_id = ?, nombre_evento = ?, fecha = ?, fecha_evento = ?, hora_evento = ?, lugar_evento = ?, notas = ?, subtotal = ?, descuento_lineas = ?, descuento_id = ?, descuento_nombre = ?, descuento_pct = ?, descuento_monto = ?, total = ? WHERE id = ? AND empresa_id = ? AND estado = \'pendiente\'', array_merge([
                     $cot['cliente_id'], nullable($cot['nombre_evento']), $cot['fecha'], nullable($cot['fecha_evento']), $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total, $id, $eid,
                 ]));
                 db_exec('DELETE FROM cotizacion_detalle WHERE cotizacion_id = ?', [$id]);
@@ -164,17 +175,20 @@ if (is_post()) {
                 // Bloquea la fila de la empresa para generar el correlativo sin duplicados
                 db_val('SELECT id FROM empresas WHERE id = ? FOR UPDATE', [$eid]);
                 $corr = (int)db_val('SELECT COALESCE(MAX(correlativo), 0) + 1 FROM cotizaciones WHERE empresa_id = ?', [$eid]);
-                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', array_merge([
+                db_exec('INSERT INTO cotizaciones (empresa_id, correlativo, cliente_id, nombre_evento, usuario_id, fecha, fecha_evento, hora_evento, lugar_evento, notas, subtotal, descuento_lineas, descuento_id, descuento_nombre, descuento_pct, descuento_monto, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'pendiente\')', array_merge([
                     $eid, $corr, $cot['cliente_id'], nullable($cot['nombre_evento']), $u['id'], $cot['fecha'], nullable($cot['fecha_evento']), $hora, nullable($cot['lugar_evento']), nullable($cot['notas'])], $descVals, [$total,
                 ]));
                 $id = (int)$pdo->lastInsertId();
             }
-            $st = $pdo->prepare('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, subtotal, comision_pct, costo_proveedor, orden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $st = $pdo->prepare('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal, comision_pct, costo_proveedor, orden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             foreach ($lineas as $i => $l) {
-                $sub = round($l['cantidad'] * $l['precio_unitario'], 2);
+                $bruto = round($l['cantidad'] * $l['precio_unitario'], 2);
+                $dLin = round($bruto * $l['descuento_pct'] / 100, 2);
+                $sub = round($bruto - $dLin, 2);
                 $pct = $l['proveedor_id'] ? $comisiones[$l['proveedor_id']] : null;
-                $costo = $l['proveedor_id'] ? costo_proveedor($sub, $pct) : 0;
-                $st->execute([$id, $l['producto_id'], $l['proveedor_id'], $l['descripcion'], nullable($l['unidad']), $l['cantidad'], $l['precio_unitario'], $sub, $pct, $costo, $i + 1]);
+                // El descuento lo absorbe el negocio: al proveedor se le paga sobre el precio sin descuento
+                $costo = $l['proveedor_id'] ? costo_proveedor($bruto, $pct) : 0;
+                $st->execute([$id, $l['producto_id'], $l['proveedor_id'], $l['descripcion'], nullable($l['unidad']), $l['cantidad'], $l['precio_unitario'], $l['descuento_pct'], $dLin, $sub, $pct, $costo, $i + 1]);
             }
             $pdo->commit();
             $volvioPorEnviar = false;
@@ -253,11 +267,12 @@ $lineasJs = array_map(function ($l) {
         'unidad'      => $l['unidad'],
         'cantidad'    => (float)$l['cantidad'],
         'precio'      => (float)$l['precio_unitario'],
+        'descuento'   => (float)($l['descuento_pct'] ?? 0),
     ];
 }, $lineas);
 
 $colsLinea = 'grid-cols-[minmax(0,1fr)_2.5rem_4.25rem_4rem_1.25rem] sm:grid-cols-[minmax(0,1fr)_3.5rem_5.5rem_5.5rem_1.75rem] '
-    . ($proveedoresJs ? 'md:grid-cols-[minmax(9rem,1fr)_8.5rem_3.75rem_6.25rem_5.75rem_1.75rem]' : 'md:grid-cols-[minmax(9rem,1fr)_3.75rem_6.25rem_5.75rem_1.75rem]');
+    . ($proveedoresJs ? 'md:grid-cols-[minmax(8rem,1fr)_8rem_3.5rem_5.75rem_4rem_5.5rem_1.75rem]' : 'md:grid-cols-[minmax(9rem,1fr)_3.75rem_6.25rem_4.25rem_5.75rem_1.75rem]');
 $titulo = $cot['id'] ? 'Editar ' . numero_cotizacion($cot) : 'Nueva cotizacion';
 $activo = 'cotizaciones';
 require __DIR__ . '/includes/header.php';
@@ -334,6 +349,7 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
         <?php if ($proveedoresJs): ?><div class="hidden md:block">Proveedor</div><?php endif; ?>
         <div class="text-right">Cant.</div>
         <div class="text-right">Precio</div>
+        <div class="hidden text-right md:block">Desc.</div>
         <div class="text-right">Subtotal</div>
         <div></div>
       </div>
@@ -425,7 +441,8 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     <section class="card hidden overflow-hidden lg:block">
       <div class="hidden space-y-1 border-b border-slate-100 px-6 py-3 text-sm" data-desc-box>
         <div class="flex justify-between text-slate-600"><span>Subtotal</span><strong class="text-slate-900" data-subtotal>Q 0.00</strong></div>
-        <div class="flex justify-between gap-3 text-rose-600"><span class="min-w-0" data-desc-txt>Descuento</span><strong class="shrink-0" data-desc-monto>- Q 0.00</strong></div>
+        <div class="flex justify-between gap-3 text-rose-600" data-desc-lineas-fila><span class="min-w-0">Descuento en productos</span><strong class="shrink-0" data-desc-lineas>- Q 0.00</strong></div>
+        <div class="flex justify-between gap-3 text-rose-600" data-desc-global-fila><span class="min-w-0" data-desc-txt>Descuento</span><strong class="shrink-0" data-desc-monto>- Q 0.00</strong></div>
       </div>
       <div class="flex items-center justify-between px-6 py-5" style="background: var(--c1); color: var(--c1-txt)">
         <span class="text-sm font-semibold opacity-90">Total</span>
@@ -478,8 +495,18 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     </div>
     <input class="input inp-xs text-right md:order-3" name="cantidad[]" inputmode="decimal" value="1" data-cant aria-label="Cantidad">
     <input class="input inp-xs text-right md:order-4" name="precio[]" inputmode="decimal" value="0.00" data-precio aria-label="Precio">
-    <p class="truncate text-right text-xs font-bold text-slate-900 sm:text-sm md:order-5" data-sub>0.00</p>
-    <button type="button" class="flex justify-center rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 md:order-6" data-quitar aria-label="Quitar linea"><i data-lucide="x" class="h-4 w-4"></i></button>
+    <div class="flex min-w-0 flex-col items-end md:contents">
+      <div class="min-w-0 max-w-full text-right md:order-6">
+        <p class="hidden truncate text-[10px] text-slate-400 line-through" data-sub-bruto></p>
+        <p class="truncate text-xs font-bold text-slate-900 sm:text-sm" data-sub>0.00</p>
+      </div>
+      <label class="linea-desc md:order-5" title="Descuento de este producto (%)">
+        <span class="text-[9px] uppercase md:hidden">Desc</span>
+        <input name="descuento_linea[]" inputmode="decimal" placeholder="0" data-desc-linea aria-label="Descuento %">
+        <span>%</span>
+      </label>
+    </div>
+    <button type="button" class="flex justify-center rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 md:order-7" data-quitar aria-label="Quitar linea"><i data-lucide="x" class="h-4 w-4"></i></button>
   </div>
 </template>
 

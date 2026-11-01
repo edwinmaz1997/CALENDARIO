@@ -220,3 +220,15 @@ html.visor-activo, html.visor-activo body { overflow: hidden; }
 body:has(.barra-sobre-nav) .btn-arriba { bottom: calc(var(--nav-abajo) + 5.25rem); }
 @media (min-width: 1024px) { .btn-arriba { right: 1.5rem; bottom: 1.5rem; } body:has(.barra-sobre-nav) .btn-arriba { bottom: 1.5rem; } }
 @media print { .btn-arriba { display: none !important; } }
+
+/* Descuento por producto: discreto bajo el nombre en movil, columna propia en escritorio */
+.linea-desc { display: inline-flex; align-items: center; gap: .2rem; flex-shrink: 0; font-size: .7rem; font-weight: 600; color: #94a3b8; margin-top: .1rem; }
+.linea-desc input { width: 2rem; border: 0; border-bottom: 1px dashed #cbd5e1; background: transparent; padding: .05rem .15rem; text-align: right; font-size: .75rem; font-weight: 700; color: #334155; border-radius: 0; }
+.linea-desc input:focus { outline: none; border-bottom-color: var(--c1); }
+.linea-desc.activo, .linea-desc.activo input { color: #e11d48; }
+@media (min-width: 768px) {
+  .linea-desc { margin: 0; position: relative; width: 100%; }
+  .linea-desc input { width: 100%; border: 1px solid #cbd5e1; border-radius: .6rem; background: #fff; padding: .4rem 1.3rem .4rem .4rem; font-size: .85rem; font-weight: 500; color: #0f172a; }
+  .linea-desc input:focus { border-color: var(--c1); }
+  .linea-desc > span:last-child { position: absolute; right: .45rem; pointer-events: none; }
+}

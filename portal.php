@@ -154,7 +154,7 @@ if ($cot['estado'] === 'pendiente' && empty($cot['respuesta_cliente'])) {
     db_exec("UPDATE cotizaciones SET respuesta_cliente = 'vista', respuesta_cliente_at = NOW() WHERE id = ? AND respuesta_cliente IS NULL", [$id]);
 }
 
-$lineas = db_all('SELECT descripcion, unidad, cantidad, precio_unitario, subtotal FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
+$lineas = db_all('SELECT descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
 $mensajes = mensajes_cotizacion($id);
 $pendiente = $cot['estado'] === 'pendiente';
 $aceptada = $cot['estado'] === 'aceptada';
@@ -284,6 +284,7 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
                 <td class="py-2.5 pr-2 align-top">
                   <p class="font-semibold text-slate-800"><?= e($l['descripcion']) ?></p>
                   <p class="text-xs text-slate-400 sm:hidden"><?= e(money($l['precio_unitario'], $moneda)) ?> c/u</p>
+                  <?php if ($dTxt = linea_texto_descuento($l, $moneda)): ?><p class="text-xs font-semibold text-rose-600"><?= e($dTxt) ?></p><?php endif; ?>
                 </td>
                 <td class="py-2.5 pr-2 text-right align-top text-slate-600"><?= e($cant($l['cantidad'])) ?></td>
                 <td class="hidden py-2.5 pr-2 text-right align-top text-slate-600 sm:table-cell"><?= e(money($l['precio_unitario'], $moneda)) ?></td>
@@ -294,10 +295,9 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
         </table>
 
         <div class="mt-4 flex flex-col items-end gap-1.5">
-          <?php if (cot_tiene_descuento($cot)): ?>
-            <div class="flex w-full max-w-xs justify-between gap-4 text-sm text-slate-600"><span>Sub total</span><span class="font-bold text-slate-900"><?= e(money(cot_subtotal($cot), $moneda)) ?></span></div>
-            <div class="flex w-full max-w-xs justify-between gap-4 text-sm text-rose-600"><span><?= e(cot_texto_descuento($cot)) ?></span><span class="shrink-0 font-bold">- <?= e(money($cot['descuento_monto'], $moneda)) ?></span></div>
-          <?php endif; ?>
+          <?php foreach (cot_filas_resumen($cot) as $fr): ?>
+            <div class="flex w-full max-w-xs justify-between gap-4 text-sm <?= $fr[2] === 'descuento' ? 'text-rose-600' : 'text-slate-600' ?>"><span><?= e($fr[0]) ?></span><span class="shrink-0 font-bold <?= $fr[2] === 'descuento' ? '' : 'text-slate-900' ?>"><?= $fr[2] === 'descuento' ? '- ' : '' ?><?= e(money($fr[1], $moneda)) ?></span></div>
+          <?php endforeach; ?>
           <div class="mt-1 flex w-full max-w-xs items-center justify-between gap-6 rounded-2xl px-5 py-3" style="background: var(--c2); color: var(--c2-txt)">
             <span class="text-sm font-bold">TOTAL</span>
             <span class="text-xl font-extrabold"><?= e(money($cot['total'], $moneda)) ?></span>
