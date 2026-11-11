@@ -287,7 +287,8 @@ function huella_cotizacion($cotId)
 {
     $c = db_one('SELECT cliente_id, nombre_evento, fecha, fecha_evento, hora_evento, lugar_evento, notas, descuento_id, descuento_pct, total FROM cotizaciones WHERE id = ?', [$cotId]);
     $l = db_all('SELECT producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
-    return md5(json_encode([$c, $l]));
+    $im = db_all('SELECT archivo FROM cotizacion_imagenes WHERE cotizacion_id = ? ORDER BY orden, id', [$cotId]);
+    return md5(json_encode($im ? [$c, $l, $im] : [$c, $l]));
 }
 
 

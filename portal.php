@@ -37,22 +37,20 @@ if (isset($_GET['pdf']) && $cot['estado'] !== 'rechazada') {
     exit;
 }
 
-/* ---------- Imagen de la cotizacion ---------- */
+/* ---------- Imagenes de la cotizacion (multimedia) ---------- */
 if (isset($_GET['img']) && $cot['estado'] !== 'rechazada') {
     require_once __DIR__ . '/includes/imagen_cotizacion.php';
-    $ruta = imagen_cot_path($eid, $cot['imagen']);
+    $r = db_one('SELECT archivo FROM cotizacion_imagenes WHERE id = ? AND cotizacion_id = ?', [(int)$_GET['img'], $id]);
+    if (!$r) {
+        // enlaces viejos (?img=1): primera imagen
+        $r = db_one('SELECT archivo FROM cotizacion_imagenes WHERE cotizacion_id = ? ORDER BY orden, id LIMIT 1', [$id]);
+    }
+    $ruta = $r ? imagen_cot_path($eid, $r['archivo']) : null;
     if (!$ruta) {
         http_response_code(404);
         exit;
     }
-    if (ob_get_length()) {
-        ob_end_clean();
-    }
-    header('Content-Type: ' . (substr($ruta, -4) === '.png' ? 'image/png' : 'image/jpeg'));
-    header('Content-Length: ' . filesize($ruta));
-    header('X-Content-Type-Options: nosniff');
-    readfile($ruta);
-    exit;
+    servir_imagen_cot($ruta);
 }
 
 /* ---------- Mensajes nuevos (JSON, para refrescar el chat) ---------- */
@@ -154,6 +152,8 @@ if ($cot['estado'] === 'pendiente' && empty($cot['respuesta_cliente'])) {
     db_exec("UPDATE cotizaciones SET respuesta_cliente = 'vista', respuesta_cliente_at = NOW() WHERE id = ? AND respuesta_cliente IS NULL", [$id]);
 }
 
+require_once __DIR__ . '/includes/imagen_cotizacion.php';
+$galeria = imagenes_cotizacion($id);
 $lineas = db_all('SELECT descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal FROM cotizacion_detalle WHERE cotizacion_id = ? ORDER BY orden, id', [$id]);
 $mensajes = mensajes_cotizacion($id);
 $pendiente = $cot['estado'] === 'pendiente';
@@ -179,7 +179,7 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
 <title>Cotizacion <?= e($numero) ?> · <?= e($emp['nombre']) ?></title>
 <meta property="og:title" content="Cotizacion <?= e($numero) ?> · <?= e($emp['nombre']) ?>">
 <meta property="og:description" content="Revisa tu cotizacion: puedes verla, descargarla, aceptarla o solicitar cambios.">
-<?php if ($logo): ?><meta property="og:image" content="<?= e(url_base() . '/' . ltrim($logo, '/')) ?>"><?php endif; ?>
+<?php if ($galeria): ?><meta property="og:image" content="<?= e(url_base() . '/' . $base . '&img=' . (int)$galeria[0]['id']) ?>"><?php elseif ($logo): ?><meta property="og:image" content="<?= e(url_base() . '/' . ltrim($logo, '/')) ?>"><?php endif; ?>
 <link rel="icon" type="image/png" href="assets/icons/favicon-32.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -311,9 +311,18 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
           </div>
         <?php endif; ?>
 
-        <?php if (!empty($cot['imagen'])): ?>
-          <a href="<?= e($base) ?>&amp;img=1" target="_blank" class="mt-5 flex h-56 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:h-72">
-            <img src="<?= e($base) ?>&amp;img=1&amp;v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de referencia" class="block h-full w-full object-contain">
+        <?php if ($galeria): ?>
+          <a href="#multimedia" class="mt-5 flex items-center gap-3 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 transition hover:bg-slate-100">
+            <span class="flex -space-x-3">
+              <?php foreach (array_slice($galeria, 0, 3) as $im): ?>
+                <img src="<?= e($base) ?>&amp;img=<?= (int)$im['id'] ?>" alt="" class="h-11 w-11 rounded-xl border-2 border-white object-cover shadow-sm" loading="lazy">
+              <?php endforeach; ?>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-bold text-slate-900">Multimedia</span>
+              <span class="block text-xs text-slate-500"><?= count($galeria) ?> imagen<?= count($galeria) > 1 ? 'es' : '' ?> de referencia</span>
+            </span>
+            <i data-lucide="chevron-down" class="h-5 w-5 text-slate-400"></i>
           </a>
         <?php endif; ?>
 
@@ -328,8 +337,27 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
       </div>
     </article>
 
+    <?php if ($galeria): ?>
+      <!-- Multimedia -->
+      <section class="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-900/5 lg:col-start-1" id="multimedia" style="scroll-margin-top:1rem">
+        <div class="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
+          <i data-lucide="images" class="h-5 w-5 texto-marca"></i>
+          <h2 class="text-base font-extrabold text-slate-900">Multimedia</h2>
+          <span class="ml-auto rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600"><?= count($galeria) ?></span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 sm:p-4">
+          <?php foreach ($galeria as $n => $im): ?>
+            <button type="button" class="group relative aspect-square overflow-hidden rounded-2xl bg-slate-100" data-galeria="<?= $n ?>" aria-label="Ver imagen <?= $n + 1 ?>">
+              <img src="<?= e($base) ?>&amp;img=<?= (int)$im['id'] ?>" alt="Imagen <?= $n + 1 ?>" class="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy">
+              <span class="absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white opacity-90"><i data-lucide="maximize-2" class="h-3.5 w-3.5"></i></span>
+            </button>
+          <?php endforeach; ?>
+        </div>
+      </section>
+    <?php endif; ?>
+
     <!-- Columna de respuesta -->
-    <aside class="space-y-5 lg:sticky lg:top-5">
+    <aside class="space-y-5 lg:sticky lg:top-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
       <?php if ($pendiente): ?>
         <section class="rounded-3xl bg-white p-5 shadow-xl shadow-slate-900/5" id="responder">
           <h2 class="text-base font-extrabold text-slate-900">¿Que te parece?</h2>
@@ -424,6 +452,52 @@ $cant = function ($n) { return rtrim(rtrim(number_format((float)$n, 2, '.', ',')
     </div>
   </form>
 </div>
+<?php endif; ?>
+
+<?php if ($galeria): ?>
+<!-- Visor de imagenes -->
+<div class="fixed inset-0 z-[60] hidden flex-col" style="background: rgba(2,6,23,.97)" id="lightbox" aria-modal="true" role="dialog">
+  <div class="flex items-center gap-3 px-4 py-3 text-white" style="padding-top: max(.75rem, env(safe-area-inset-top))">
+    <span class="text-sm font-semibold" id="lb-cont">1 / 1</span>
+    <a href="#" download class="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" id="lb-desc" aria-label="Descargar imagen"><i data-lucide="download" class="h-5 w-5"></i></a>
+    <button type="button" class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" data-lb-cerrar aria-label="Cerrar"><i data-lucide="x" class="h-6 w-6"></i></button>
+  </div>
+  <div class="relative flex min-h-0 flex-1 items-center justify-center px-2 pb-6" id="lb-zona">
+    <img alt="" class="max-h-full max-w-full select-none rounded-lg object-contain" id="lb-img" draggable="false">
+    <button type="button" class="absolute left-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:left-5" data-lb="-1" aria-label="Anterior"><i data-lucide="chevron-left" class="h-6 w-6"></i></button>
+    <button type="button" class="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:right-5" data-lb="1" aria-label="Siguiente"><i data-lucide="chevron-right" class="h-6 w-6"></i></button>
+  </div>
+</div>
+<script>
+(function () {
+  var fotos = <?= json_encode(array_map(function ($im) use ($base) { return $base . '&img=' . (int)$im['id']; }, $galeria)) ?>;
+  var lb = document.getElementById('lightbox'), img = document.getElementById('lb-img'), cont = document.getElementById('lb-cont'), desc = document.getElementById('lb-desc'), i = 0;
+  var navs = lb.querySelectorAll('[data-lb]');
+  function mostrar(n) {
+    i = (n + fotos.length) % fotos.length;
+    img.src = fotos[i]; desc.href = fotos[i]; desc.setAttribute('download', 'imagen-' + (i + 1));
+    cont.textContent = (i + 1) + ' / ' + fotos.length;
+    Array.prototype.forEach.call(navs, function (b) { b.style.display = fotos.length > 1 ? '' : 'none'; });
+  }
+  function abrir(n) { mostrar(n); lb.classList.remove('hidden'); lb.classList.add('flex'); document.body.style.overflow = 'hidden'; }
+  function cerrar() { lb.classList.add('hidden'); lb.classList.remove('flex'); document.body.style.overflow = ''; }
+  document.addEventListener('click', function (ev) {
+    var g = ev.target.closest('[data-galeria]'); if (g) { abrir(+g.getAttribute('data-galeria')); return; }
+    var nv = ev.target.closest('[data-lb]'); if (nv) { mostrar(i + (+nv.getAttribute('data-lb'))); return; }
+    if (ev.target.closest('[data-lb-cerrar]') || ev.target.id === 'lb-zona') cerrar();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (lb.classList.contains('hidden')) return;
+    if (ev.key === 'Escape') cerrar(); else if (ev.key === 'ArrowLeft') mostrar(i - 1); else if (ev.key === 'ArrowRight') mostrar(i + 1);
+  });
+  var x0 = null;
+  lb.addEventListener('touchstart', function (ev) { x0 = ev.touches[0].clientX; }, { passive: true });
+  lb.addEventListener('touchend', function (ev) {
+    if (x0 === null) return; var dx = ev.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50 && fotos.length > 1) mostrar(i + (dx < 0 ? 1 : -1));
+  });
+})();
+</script>
 <?php endif; ?>
 
 <script>

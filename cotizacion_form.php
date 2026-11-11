@@ -203,21 +203,13 @@ if (is_post()) {
                 db_exec("UPDATE cotizaciones SET respuesta_cliente = IF(respuesta_cliente = 'cambios', 'vista', respuesta_cliente) WHERE id = ?", [$id]);
             }
             flash('ok', $cot['id'] ? 'Cotizacion actualizada.' . ($volvioPorEnviar ? ' Como cambio, quedo otra vez "Por enviar".' : '') : 'Cotizacion creada como pendiente.');
-            // Imagen de la cotizacion
-            $imgActual = db_val('SELECT imagen FROM cotizaciones WHERE id = ?', [$id]);
-            if (!empty($_POST['quitar_imagen']) && $imgActual) {
-                borrar_imagen_cot($eid, $imgActual);
-                db_exec('UPDATE cotizaciones SET imagen = NULL WHERE id = ?', [$id]);
-                $imgActual = null;
+            // Imagenes de la cotizacion (galeria)
+            foreach ((array)($_POST['quitar_img'] ?? []) as $qi) {
+                borrar_imagen_galeria((int)$qi, $id, $eid);
             }
-            list($imgNueva, $imgErr) = guardar_imagen_cot('imagen', $eid, $id);
-            if ($imgErr) {
-                flash('error', 'Imagen: ' . $imgErr);
-            } elseif ($imgNueva) {
-                if ($imgActual) {
-                    borrar_imagen_cot($eid, $imgActual);
-                }
-                db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$imgNueva, $id]);
+            list(, $imgErrs) = guardar_imagenes_cot('imagenes', $eid, $id);
+            foreach ($imgErrs as $ie) {
+                flash('error', 'Imagenes: ' . $ie);
             }
             // Adjuntos agregados en el formulario
             if (!empty($_FILES['adj_archivo']['name']) && array_filter((array)$_FILES['adj_archivo']['name'])) {
@@ -418,17 +410,21 @@ $jsonFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_
     </section>
 
     <section class="card p-5 sm:p-6">
-      <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="image" class="h-5 w-5 texto-marca"></i>Imagen <span class="text-xs font-normal text-slate-400">(opcional)</span></h2>
-      <p class="ayuda mb-3">Se muestra en la cotizacion y en el PDF. Ej: referencia del montaje o la decoracion.</p>
-      <?php $tieneImg = !empty($cot['imagen']) && $cot['id']; ?>
-      <div id="img-caja" class="mb-3 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 <?= $tieneImg ? '' : 'hidden' ?>">
-        <img id="img-prev" src="<?= $tieneImg ? 'cotizacion_imagen.php?id=' . (int)$cot['id'] . '&v=' . e(substr(md5($cot['imagen']), 0, 6)) : '' ?>" alt="" class="block h-full w-full object-contain p-1">
+      <?php $imgsCot = $cot['id'] ? imagenes_cotizacion($cot['id']) : []; ?>
+      <h2 class="mb-1 flex items-center gap-2 text-base font-bold text-slate-900"><i data-lucide="images" class="h-5 w-5 texto-marca"></i>Imagenes <span class="text-xs font-normal text-slate-400">(opcional)</span></h2>
+      <p class="ayuda mb-3">Salen en el PDF y en la seccion Multimedia del enlace del cliente. Ej: montaje, decoracion, productos.</p>
+      <div class="mb-3 grid grid-cols-3 gap-2 <?= $imgsCot ? '' : 'hidden' ?>" id="img-galeria">
+        <?php foreach ($imgsCot as $im): ?>
+          <label class="img-mini group relative block aspect-square cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-slate-50" title="Marcar para quitar">
+            <img src="cotizacion_imagen.php?img=<?= (int)$im['id'] ?>" alt="" class="h-full w-full object-cover" loading="lazy">
+            <input type="checkbox" name="quitar_img[]" value="<?= (int)$im['id'] ?>" class="peer sr-only">
+            <span class="absolute inset-0 hidden items-center justify-center bg-rose-600/60 text-xs font-bold text-white peer-checked:flex">Se quitara</span>
+            <span class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow"><i data-lucide="x" class="h-3.5 w-3.5"></i></span>
+          </label>
+        <?php endforeach; ?>
       </div>
-      <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagen" id="img-input" accept="image/jpeg,image/png">
-      <p class="ayuda">JPG o PNG.</p>
-      <?php if ($tieneImg): ?>
-        <label class="mt-2 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="quitar_imagen" value="1" class="rounded"> Quitar imagen actual</label>
-      <?php endif; ?>
+      <input class="input bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagenes[]" id="img-input" accept="image/jpeg,image/png" multiple>
+      <p class="ayuda">Puedes elegir varias a la vez (JPG o PNG, maximo <?= MAX_IMAGENES_COT ?>).<?= $imgsCot ? ' Toca una imagen para quitarla.' : '' ?></p>
     </section>
 
     <section class="card p-5 sm:p-6">

@@ -1,23 +1,23 @@
 <?php
 /**
- * Entrega la imagen de una cotizacion validando la empresa de la sesion.
+ * Entrega una imagen de la galeria de la cotizacion validando la empresa de la sesion.
+ *   cotizacion_imagen.php?img=ID        imagen concreta
+ *   cotizacion_imagen.php?id=COT        primera imagen (compatibilidad)
  */
 require __DIR__ . '/includes/bootstrap.php';
 require __DIR__ . '/includes/imagen_cotizacion.php';
 require_empresa();
 
 $eid = empresa_id();
-$cot = db_one('SELECT imagen FROM cotizaciones WHERE id = ? AND empresa_id = ?', [input_int('id'), $eid]);
-$ruta = $cot ? imagen_cot_path($eid, $cot['imagen']) : null;
+if (input_int('img')) {
+    $r = db_one('SELECT archivo FROM cotizacion_imagenes WHERE id = ? AND empresa_id = ?', [input_int('img'), $eid]);
+} else {
+    $r = db_one('SELECT i.archivo FROM cotizacion_imagenes i JOIN cotizaciones c ON c.id = i.cotizacion_id
+        WHERE i.cotizacion_id = ? AND c.empresa_id = ? ORDER BY i.orden, i.id LIMIT 1', [input_int('id'), $eid]);
+}
+$ruta = $r ? imagen_cot_path($eid, $r['archivo']) : null;
 if (!$ruta) {
     http_response_code(404);
     exit('Imagen no encontrada.');
 }
-if (ob_get_length()) {
-    ob_end_clean();
-}
-header('Content-Type: ' . (substr($ruta, -4) === '.png' ? 'image/png' : 'image/jpeg'));
-header('Content-Length: ' . filesize($ruta));
-header('X-Content-Type-Options: nosniff');
-header('Cache-Control: private, max-age=86400');
-readfile($ruta);
+servir_imagen_cot($ruta);

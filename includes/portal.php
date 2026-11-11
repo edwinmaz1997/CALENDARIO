@@ -42,7 +42,7 @@ function mensaje_portal_cliente($cot, $emp, $cliente)
     $evento = !empty($cot['nombre_evento']) ? ' para "' . $cot['nombre_evento'] . '"' : '';
     return 'Hola ' . primer_nombre($cliente['nombre']) . ', te saluda ' . $emp['nombre'] . ".\n"
         . 'Te compartimos tu cotizacion ' . $num . $evento . ".\n\n"
-        . "En este enlace puedes verla, descargarla, aceptarla o solicitar cambios:\n"
+        . 'En este enlace puedes verla' . (db_val('SELECT COUNT(*) FROM cotizacion_imagenes WHERE cotizacion_id = ?', [$cot['id']]) ? ', ver las imagenes' : '') . ", descargarla, aceptarla o solicitar cambios:\n"
         . enlace_portal($cot['id']);
 }
 

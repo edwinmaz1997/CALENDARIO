@@ -323,13 +323,20 @@
     });
   }
 
-  /* ================= Imagen ================= */
-  var imgIn = $('#img-input');
-  if (imgIn) {
+  /* ================= Imagenes ================= */
+  var imgIn = $('#img-input'), galeria = $('#img-galeria');
+  if (imgIn && galeria) {
     imgIn.addEventListener('change', function () {
-      var f = imgIn.files[0]; if (!f) return;
-      $('#img-prev').src = URL.createObjectURL(f);
-      $('#img-caja').classList.remove('hidden');
+      Array.prototype.forEach.call(galeria.querySelectorAll('.img-nueva'), function (n) { n.remove(); });
+      Array.prototype.forEach.call(imgIn.files || [], function (f) {
+        if (!/^image\//.test(f.type)) return;
+        var d = document.createElement('div');
+        d.className = 'img-nueva relative aspect-square overflow-hidden rounded-xl border-2 border-dashed border-emerald-300 bg-slate-50';
+        d.innerHTML = '<img alt="" class="h-full w-full object-cover"><span class="absolute bottom-1 left-1 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Nueva</span>';
+        d.querySelector('img').src = URL.createObjectURL(f);
+        galeria.appendChild(d);
+      });
+      galeria.classList.toggle('hidden', !galeria.children.length);
     });
   }
 

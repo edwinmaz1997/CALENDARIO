@@ -102,13 +102,7 @@ if (is_post()) {
             db_exec('INSERT INTO cotizacion_detalle (cotizacion_id, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal, comision_pct, costo_proveedor, orden)
                      SELECT ?, producto_id, proveedor_id, descripcion, unidad, cantidad, precio_unitario, descuento_pct, descuento_monto, subtotal, comision_pct, costo_proveedor, orden FROM cotizacion_detalle WHERE cotizacion_id = ?', [$nuevo, $id]);
             $pdo->commit();
-            $origen = imagen_cot_path($eid, $cot['imagen']);
-            if ($origen) {
-                $copia = 'img_cot' . $nuevo . '_' . bin2hex(random_bytes(6)) . '.' . pathinfo($origen, PATHINFO_EXTENSION);
-                if (@copy($origen, dirname($origen) . '/' . $copia)) {
-                    db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$copia, $nuevo]);
-                }
-            }
+            copiar_imagenes_cotizacion($id, $nuevo, $eid);
             flash('ok', 'Cotizacion duplicada como pendiente. Revisa la fecha del evento.');
             redirect('cotizacion_form.php?id=' . $nuevo);
         } catch (Exception $ex) {
@@ -120,11 +114,11 @@ if (is_post()) {
             flash('error', 'No se puede eliminar una cotizacion aceptada. Regresala a pendiente primero.');
         } else {
             $archivos = db_all('SELECT archivo FROM cotizacion_adjuntos WHERE cotizacion_id = ?', [$id]);
+            borrar_imagenes_cotizacion($id, $eid);
             db_exec('DELETE FROM cotizaciones WHERE id = ? AND empresa_id = ?', [$id, $eid]);
             foreach ($archivos as $a) {
                 borrar_archivo_adjunto($eid, $a['archivo']);
             }
-            borrar_imagen_cot($eid, $cot['imagen']);
             flash('ok', 'Cotizacion ' . numero_cotizacion($cot, $emp) . ' eliminada.');
             redirect('cotizaciones.php');
         }
@@ -220,23 +214,22 @@ if (is_post()) {
     } elseif ($accion === 'no_enviada') {
         db_exec('UPDATE cotizaciones SET enviada_at = NULL WHERE id = ? AND empresa_id = ?', [$id, $eid]);
         flash('ok', 'Se quito la marca de enviada.');
-    } elseif ($accion === 'imagen') {
-        if (input('hacer') === 'quitar') {
-            borrar_imagen_cot($eid, $cot['imagen']);
-            db_exec('UPDATE cotizaciones SET imagen = NULL WHERE id = ?', [$id]);
-            flash('ok', 'Imagen quitada de la cotizacion.');
-        } else {
-            list($nueva, $err) = guardar_imagen_cot('imagen', $eid, $id);
-            if ($err) {
-                flash('error', $err);
-            } elseif ($nueva) {
-                borrar_imagen_cot($eid, $cot['imagen']);
-                db_exec('UPDATE cotizaciones SET imagen = ? WHERE id = ?', [$nueva, $id]);
-                flash('ok', 'Imagen guardada. Ya aparece en el PDF.');
-            } else {
-                flash('error', 'Selecciona una imagen.');
-            }
+    } elseif ($accion === 'imagenes') {
+        list($nImg, $errImg) = guardar_imagenes_cot('imagenes', $eid, $id);
+        foreach ($errImg as $er) {
+            flash('error', $er);
         }
+        if ($nImg) {
+            flash('ok', ($nImg === 1 ? 'Se agrego 1 imagen.' : 'Se agregaron ' . $nImg . ' imagenes.') . ' Ya salen en el PDF y en el enlace del cliente.');
+        } elseif (!$errImg) {
+            flash('error', 'Selecciona al menos una imagen.');
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#galeria');
+    } elseif ($accion === 'imagen_quitar') {
+        if (borrar_imagen_galeria(input_int('img'), $id, $eid)) {
+            flash('ok', 'Imagen quitada.');
+        }
+        redirect('cotizacion_ver.php?id=' . $id . '#galeria');
     } elseif ($accion === 'registrar_pago') {
         $desc = input('pago_descripcion');
         $monto = str_replace([',', ' '], '', input('pago_monto'));
@@ -423,27 +416,37 @@ require __DIR__ . '/includes/header.php';
           </div>
         </div>
 
-        <div class="mt-6">
-          <?php if (!empty($cot['imagen'])): ?>
-            <a href="cotizacion_imagen.php?id=<?= (int)$id ?>" data-visor="imagen" data-titulo="Imagen de <?= e($numero) ?>" class="flex h-56 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-2 sm:h-72">
-              <img src="cotizacion_imagen.php?id=<?= (int)$id ?>&v=<?= e(substr(md5($cot['imagen']), 0, 6)) ?>" alt="Imagen de la cotizacion" class="block h-full w-full object-contain">
-            </a>
+        <?php $galeria = imagenes_cotizacion($id); ?>
+        <div class="mt-6" id="galeria" style="scroll-margin-top:5rem">
+          <?php if ($galeria): ?>
+            <p class="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500"><i data-lucide="images" class="h-4 w-4 texto-marca"></i>Imagenes (<?= count($galeria) ?>)</p>
+            <div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              <?php foreach ($galeria as $n => $im): ?>
+                <div class="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <a href="cotizacion_imagen.php?img=<?= (int)$im['id'] ?>" data-visor="imagen" data-titulo="Imagen <?= $n + 1 ?> de <?= e($numero) ?>" class="block h-full w-full">
+                    <img src="cotizacion_imagen.php?img=<?= (int)$im['id'] ?>" alt="Imagen <?= $n + 1 ?>" class="h-full w-full object-cover transition group-hover:scale-105" loading="lazy">
+                  </a>
+                  <form method="post" class="absolute right-1 top-1" data-confirmar="¿Quitar esta imagen de la cotizacion?">
+                    <?= csrf_field() ?><input type="hidden" name="accion" value="imagen_quitar"><input type="hidden" name="img" value="<?= (int)$im['id'] ?>">
+                    <button class="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-rose-600 shadow hover:bg-white" title="Quitar" aria-label="Quitar imagen"><i data-lucide="x" class="h-4 w-4"></i></button>
+                  </form>
+                </div>
+              <?php endforeach; ?>
+            </div>
           <?php endif; ?>
+          <?php if (count($galeria) < MAX_IMAGENES_COT): ?>
           <details class="desplegable mt-2">
             <summary class="inline-flex cursor-pointer select-none items-center gap-1.5 text-xs font-semibold texto-marca hover:underline">
-              <i data-lucide="image" class="h-4 w-4"></i><?= !empty($cot['imagen']) ? 'Cambiar o quitar imagen' : 'Agregar imagen a la cotizacion (opcional)' ?>
+              <i data-lucide="image-plus" class="h-4 w-4"></i><?= $galeria ? 'Agregar mas imagenes' : 'Agregar imagenes a la cotizacion (opcional)' ?>
             </summary>
             <form method="post" enctype="multipart/form-data" class="mt-3 flex flex-col gap-3 rounded-xl bg-slate-50 p-4 sm:flex-row sm:items-center">
-              <?= csrf_field() ?><input type="hidden" name="accion" value="imagen">
-              <input class="input flex-1 bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagen" accept="image/jpeg,image/png">
-              <div class="flex gap-2">
-                <button class="btn btn-primario btn-sm" name="hacer" value="subir"><i data-lucide="upload"></i>Guardar</button>
-                <?php if (!empty($cot['imagen'])): ?>
-                  <button class="btn btn-claro btn-sm text-rose-600" name="hacer" value="quitar" formnovalidate onclick="return confirm('Quitar la imagen de la cotizacion?')"><i data-lucide="trash-2"></i>Quitar</button>
-                <?php endif; ?>
-              </div>
+              <?= csrf_field() ?><input type="hidden" name="accion" value="imagenes">
+              <input class="input flex-1 bg-white py-1.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700" type="file" name="imagenes[]" accept="image/jpeg,image/png" multiple required>
+              <button class="btn btn-primario btn-sm"><i data-lucide="upload"></i>Subir</button>
             </form>
+            <p class="ayuda mt-1">Puedes elegir varias a la vez. Salen en el PDF y en la seccion Multimedia del enlace del cliente.</p>
           </details>
+          <?php endif; ?>
         </div>
 
         <?php if ($cot['notas']): ?>

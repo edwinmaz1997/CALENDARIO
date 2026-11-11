@@ -196,6 +196,22 @@ CREATE TABLE IF NOT EXISTS cotizacion_detalle (
   CONSTRAINT fk_detalle_proveedor FOREIGN KEY (proveedor_id) REFERENCES proveedores (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+-- -----------------------------------------------------
+-- Imagenes de la cotizacion (salen en el PDF y en el enlace del cliente)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS cotizacion_imagenes (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  cotizacion_id INT UNSIGNED NOT NULL,
+  empresa_id    INT UNSIGNED NOT NULL,
+  archivo       VARCHAR(120) NOT NULL,
+  orden         SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_imagenes_cotizacion (cotizacion_id, orden, id),
+  CONSTRAINT fk_imagenes_cotizacion FOREIGN KEY (cotizacion_id) REFERENCES cotizaciones (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- -----------------------------------------------------
 -- Conversacion cotizacion <-> cliente (portal)
 -- -----------------------------------------------------
